@@ -7,13 +7,13 @@ use url::Url;
 pub fn cli() -> App {
     subcommand("install")
         .about("Install a package")
-        // .arg(Arg::with_name("pkg"))
-        .arg(Arg::with_name("git").value_name("URL"))
+        .arg(Arg::with_name("pkg"))
+        .arg(Arg::with_name("git").long("git").value_name("URL"))
 }
 
 pub fn exec(args: &ArgMatches) -> Result<()> {
     let url = args.value_of("git").ok_or(anyhow!(
-        "There is no public registry yet, so the only way to download packages are with git urls."
+        "There is no public registry yet, so the only way to download packages are with git urls. Use grill install --git [URL]"
     ))?;
 
     let url = Url::parse(url)?;
@@ -39,22 +39,29 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
         pkg = format!("{}-{}", manifest.package.owner, manifest.package.name);
     }
 
-    if dir::pkg(&pkg).exists()
-        && dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
-            .with_prompt("This package is already installed, do you want to update it?")
-            .interact()?
-    {
-        println!("Updating it");
-    } else {
-        // fs::create_dir_all(&pkg_path)?;
-        // fs::copy(dir::tmp(), pkg_path)?;
+    if !dir::pkg(&pkg).exists() {
         let tmp_pkg_path = dir::home().join(&pkg);
         fs::rename(dir::tmp(), &tmp_pkg_path)?;
-        fs_extra::dir::move_dir(
-            tmp_pkg_path,
+        match fs_extra::dir::copy(
+            &tmp_pkg_path,
             dir::pkgs(),
             &fs_extra::dir::CopyOptions::default(),
-        )?;
+        ) {
+            Ok(_) => {
+                println!("Installed package as {}", pkg);
+            }
+            Err(e) => {
+                let pkg_path = dir::pkgs().join(pkg);
+                rm_rf::ensure_removed(pkg_path)?;
+                rm_rf::ensure_removed(tmp_pkg_path)?;
+                return Err(e.into());
+            }
+        }
+    } else if dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
+        .with_prompt("This package is already installed, do you want to update it?")
+        .interact()?
+    {
+        println!("Updating it");
     }
 
     Ok(())

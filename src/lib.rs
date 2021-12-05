@@ -1,11 +1,14 @@
 pub mod commands;
 pub mod dir;
 
+use clap::AppSettings;
 use prelude::App;
 use serde::{Deserialize, Serialize};
 
 pub fn cli() -> App {
     App::new("grill")
+        .setting(AppSettings::VersionlessSubcommands)
+        .subcommand(commands::add::cli())
         .subcommand(commands::install::cli())
         .subcommand(commands::list::cli())
         .subcommand(commands::remove::cli())
