@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 
@@ -18,11 +18,34 @@ pub fn tmp() -> PathBuf {
     ensure_exists(home().join("tmp"))
 }
 
-fn ensure_exists(path: PathBuf) -> PathBuf {
-    fs::create_dir_all(&path).unwrap();
-    path
+pub fn index() -> PathBuf {
+    home().join("index.toml")
 }
 
 pub fn home() -> PathBuf {
     dirs::home_dir().unwrap().join(".grill")
+}
+
+pub fn beeflibs() -> PathBuf {
+    beef().join("BeefLibs")
+}
+
+pub fn beeflib<P>(pkg: P) -> PathBuf
+where
+    P: AsRef<Path>,
+{
+    beeflibs().join(pkg)
+}
+
+pub fn themes() -> PathBuf {
+    beef().join("bin").join("themes")
+}
+
+pub fn beef() -> PathBuf {
+    PathBuf::from(env::var("BeefPath").expect("No Beef installation found"))
+}
+
+fn ensure_exists(path: PathBuf) -> PathBuf {
+    fs::create_dir_all(&path).unwrap();
+    path
 }
