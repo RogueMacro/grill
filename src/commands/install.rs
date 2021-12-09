@@ -52,7 +52,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
                 .and_then(|versions| Some(!versions.contains(version)))
                 .unwrap_or(true)
             {
-                crate::ops::install(dep, true)?;
+                crate::ops::install(dep, false, true, Some(version))?;
                 installed += 1;
             }
 
