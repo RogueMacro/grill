@@ -1,5 +1,6 @@
 [package]
 name = "proj"
+version = "0.1.0"
 
 [dependencies]
-dummy = "0.1.0"
+dummy = "0.1.1"

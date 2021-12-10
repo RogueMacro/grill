@@ -5,10 +5,10 @@ use grill::dir;
 
 fn main() -> Result<()> {
     let result = run();
-    let removed = rm_rf::ensure_removed(dir::tmp());
+    // let removed = rm_rf::ensure_removed(dir::tmp());
 
     result?;
-    removed?;
+    // removed?;
 
     Ok(())
 }

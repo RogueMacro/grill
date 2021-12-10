@@ -2,14 +2,21 @@ use crate::{dir, prelude::*, Index, Manifest};
 
 use fs_extra::dir::CopyOptions;
 use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks, Repository};
-use std::fs;
+use std::{fs, path::Path};
 use url::Url;
 
 pub fn cli() -> App {
     subcommand("install")
-        .about("Install a git repository into BeefLibs (can be accessed from IDE)")
+        .about("Install a package into BeefLibs (can be added to a project through the IDE)")
         .arg(Arg::with_name("pkg"))
         .arg(Arg::with_name("git").long("git").value_name("URL"))
+        .arg(
+            Arg::with_name("path")
+                .help("Path to the workspace whose dependencies would be installed")
+                .long("path")
+                .value_name("PATH")
+                .conflicts_with_all(&["pkg", "git"]),
+        )
 }
 
 pub fn exec(args: &ArgMatches) -> Result<()> {
@@ -33,37 +40,39 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
             bail!("Could not find package '{}'", name);
         }
     } else {
+        let path = Path::new(args.value_of("path").or(Some("./")).unwrap());
         let manifest: Manifest = toml::from_str(
-            &fs::read_to_string("./Grill.toml")
+            &fs::read_to_string(path.join("Grill.toml"))
                 .with_context(|| "No manifest file in current directory")?,
-        )?;
+        )
+        .with_context(|| format!("Failed to parse manifest"))?;
 
         let pkgs = crate::ops::get_pkgs()?;
         let all = pkgs.len() as u64;
         let mut installed = 0;
-        let progress = indicatif::ProgressBar::new(all).with_message(format!(
-            "{} dependencies",
-            console::style("Installing").bright().green()
-        ));
-        progress.tick();
+        // let progress = indicatif::ProgressBar::new(all).with_message(format!(
+        //     "{} dependencies",
+        //     console::style("Installing").bright().green()
+        // ));
+        // progress.tick();
         for (dep, version) in manifest.dependencies.iter() {
             if pkgs
                 .get(dep)
                 .and_then(|versions| Some(!versions.contains(version)))
                 .unwrap_or(true)
             {
-                crate::ops::install(dep, false, true, Some(version))?;
+                crate::ops::install(dep, Some(version))?;
                 installed += 1;
             }
 
-            progress.tick();
+            // progress.tick();
         }
-        progress.finish_with_message(format!(
-            "{} {}/{} dependencies",
-            console::style("Installed").bright().green(),
-            installed,
-            all
-        ));
+        // progress.finish_with_message(format!(
+        //     "{} {}/{} dependencies",
+        //     console::style("Installed").bright().green(),
+        //     installed,
+        //     all
+        // ));
 
         return Ok(());
     };
@@ -126,9 +135,9 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
         .with_prompt("This package is already installed, do you want to update it?")
         .interact()?
     {
-        let v1 = if let Ok(manifest) = toml::from_str::<Manifest>(
-            &fs::read_to_string(dir::beeflib(&pkg).join("Grill.toml")).unwrap(),
-        ) {
+        let v1 = if let Ok(manifest) =
+            toml::from_str::<Manifest>(&fs::read_to_string(dir::beeflib(&pkg).join("Grill.toml"))?)
+        {
             Some(manifest.package.version)
         } else {
             None
