@@ -62,7 +62,6 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     callbacks.transfer_progress(|git_progress| {
         cli_progress.set_length(git_progress.total_objects() as u64);
         cli_progress.set_position(git_progress.indexed_objects() as u64);
-        std::thread::sleep(std::time::Duration::from_millis(200));
         true
     });
 
@@ -84,8 +83,8 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
         }?;
     }
 
-    // Dropping the builder grants us access to the directory
-    drop(builder);
+    // Dropping the repo grants us access to the directory
+    drop(repo);
 
     let mut pkg = url.host().ok_or(anyhow!("No host in url"))?.to_string();
     pkg.push_str(&url.path().replace("/", "-").replace(".git", ""));
@@ -148,7 +147,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
         .interact()?
     {
         rm_rf::remove(&pkg_path)?;
-        fs::rename(dir::tmp(), dir::beeflib(&pkg))?;
+        fs::rename(dir::tmp(), &pkg_path)?;
 
         println!("{} {}", console::style("Updated").bright().green(), pkg);
     }
