@@ -1,7 +1,8 @@
-use crate::{dir, prelude::*, Index, Manifest};
+use crate::{dir, prelude::*, Manifest};
 
-use fs_extra::dir::CopyOptions;
-use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks, Repository};
+// use fs_extra::dir::CopyOptions;
+use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::{fs, path::Path};
 use url::Url;
 
@@ -23,7 +24,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let (url, rev) = if let Some(url) = args.value_of("git") {
         (url.to_string(), None)
     } else if let Some(name) = args.value_of("pkg") {
-        let index: Index = toml::from_str(&fs::read_to_string(dir::index())?)?;
+        let index = crate::ops::parse_index(true, false)?;
         if !index.packages.contains_key(name) {
             crate::commands::update::exec(&ArgMatches::default())?;
         }
@@ -41,54 +42,28 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
         }
     } else {
         let path = Path::new(args.value_of("path").or(Some("./")).unwrap());
-        let manifest: Manifest = toml::from_str(
-            &fs::read_to_string(path.join("Grill.toml"))
-                .with_context(|| "No manifest file in current directory")?,
-        )
-        .with_context(|| format!("Failed to parse manifest"))?;
-
-        let pkgs = crate::ops::get_pkgs()?;
-        let all = pkgs.len() as u64;
-        let mut installed = 0;
-        // let progress = indicatif::ProgressBar::new(all).with_message(format!(
-        //     "{} dependencies",
-        //     console::style("Installing").bright().green()
-        // ));
-        // progress.tick();
-        for (dep, version) in manifest.dependencies.iter() {
-            if pkgs
-                .get(dep)
-                .and_then(|versions| Some(!versions.contains(version)))
-                .unwrap_or(true)
-            {
-                crate::ops::install(dep, Some(version))?;
-                installed += 1;
-            }
-
-            // progress.tick();
-        }
-        // progress.finish_with_message(format!(
-        //     "{} {}/{} dependencies",
-        //     console::style("Installed").bright().green(),
-        //     installed,
-        //     all
-        // ));
-
+        crate::ops::install_deps(path, true)?;
         return Ok(());
     };
 
     let url = Url::parse(&url)?;
 
-    println!("{} {}", console::style("Installing").bright().green(), url);
-
     rm_rf::remove(dir::tmp())?;
 
-    let cli_progress = indicatif::ProgressBar::new(1);
+    let cli_progress = ProgressBar::new(1)
+        .with_style(
+            ProgressStyle::default_bar()
+                .template("{prefix:>12.bright.green} {msg} [{bar:40}]")
+                .progress_chars("=> "),
+        )
+        .with_prefix("Installing")
+        .with_message(url.as_str().to_owned());
     cli_progress.tick();
     let mut callbacks = RemoteCallbacks::new();
     callbacks.transfer_progress(|git_progress| {
         cli_progress.set_length(git_progress.total_objects() as u64);
         cli_progress.set_position(git_progress.indexed_objects() as u64);
+        std::thread::sleep(std::time::Duration::from_millis(200));
         true
     });
 
@@ -97,93 +72,86 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
 
     let mut builder = RepoBuilder::new();
     builder.fetch_options(fo);
-    match builder.clone(url.as_str(), &dir::tmp()) {
+    let repo = match builder.clone(url.as_str(), &dir::tmp()) {
         Ok(repo) => repo,
         Err(e) => bail!("Download failed: {}", e),
     };
+    if let Some(rev) = rev {
+        let (object, reference) = repo.revparse_ext(&rev)?;
+        repo.checkout_tree(&object, None)?;
+        match reference {
+            Some(gref) => repo.set_head(gref.name().with_context(|| "Invalid gref name")?),
+            None => repo.set_head_detached(object.id()),
+        }?;
+    }
+
+    // Dropping the builder grants us access to the directory
+    drop(builder);
 
     let mut pkg = url.host().ok_or(anyhow!("No host in url"))?.to_string();
     pkg.push_str(&url.path().replace("/", "-").replace(".git", ""));
 
-    let manifest_path = dir::tmp().join("Grill.toml");
-    if let Ok(file) = fs::read_to_string(manifest_path) {
-        let manifest: Manifest = toml::from_str(&file)
-            .with_context(|| format!("Failed to parse manifest:\n{}", &file))?;
-
+    let manifest_path = dir::tmp().join("Package.toml");
+    let mut already_installed_prompt =
+        "This package is already installed, do you want to update it?".to_owned();
+    let has_manifest = if let Ok(file) = fs::read_to_string(manifest_path) {
+        let manifest: Manifest = toml::from_str(&file)?;
         pkg = manifest.package.name;
-    }
 
-    if !dir::beeflib(&pkg).exists() {
-        let tmp_pkg_path = dir::home().join(&pkg);
-        fs::rename(dir::tmp(), &tmp_pkg_path)?;
-        match fs_extra::dir::copy(
-            &tmp_pkg_path,
-            dir::beeflibs(),
-            &fs_extra::dir::CopyOptions::default(),
-        ) {
-            Ok(_) => {
-                println!("Installed package as {}", pkg);
+        let pkg_path = dir::beeflib(&pkg);
+        if pkg_path.exists() {
+            let installed_manifest: Manifest =
+                toml::from_str(&fs::read_to_string(&pkg_path.join("Package.toml"))?)?;
+
+            if installed_manifest.package.version == manifest.package.version {
+                return Ok(());
             }
-            Err(e) => {
-                let pkg_path = dir::beeflib(pkg);
-                rm_rf::ensure_removed(pkg_path)?;
-                rm_rf::ensure_removed(tmp_pkg_path)?;
-                return Err(e.into());
-            }
+
+            already_installed_prompt = format!(
+                "This package is already installed, do you want to update it from v{} to v{}?",
+                installed_manifest.package.version, manifest.package.version
+            );
+        }
+
+        true
+    } else {
+        false
+    };
+
+    let pkg_path = dir::beeflib(&pkg);
+    if !pkg_path.exists() {
+        fs::rename(dir::tmp(), &pkg_path)?;
+
+        if !has_manifest
+            && dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
+                .with_prompt(format!(
+                    "Installed package as {}. Do you want to rename it?",
+                    pkg
+                ))
+                .interact()?
+        {
+            let new_name: String =
+                dialoguer::Input::with_theme(&dialoguer::theme::ColorfulTheme::default())
+                    .with_prompt("Enter a new name".to_owned())
+                    .validate_with(|input: &String| {
+                        if dir::beeflib(input).exists() {
+                            Err("A package by that name already exists")
+                        } else {
+                            Ok(())
+                        }
+                    })
+                    .interact()?;
+
+            fs::rename(&pkg_path, dir::beeflib(new_name))?;
         }
     } else if dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("This package is already installed, do you want to update it?")
+        .with_prompt(already_installed_prompt)
         .interact()?
     {
-        let v1 = if let Ok(manifest) =
-            toml::from_str::<Manifest>(&fs::read_to_string(dir::beeflib(&pkg).join("Grill.toml"))?)
-        {
-            Some(manifest.package.version)
-        } else {
-            None
-        };
+        rm_rf::remove(&pkg_path)?;
+        fs::rename(dir::tmp(), dir::beeflib(&pkg))?;
 
-        let repo = Repository::open(dir::beeflib(&pkg))?;
-        let remote = repo.find_remote(
-            repo.branch_upstream_remote("refs/heads/main")?
-                .as_str()
-                .with_context(|| "Invalid remote")?,
-        )?;
-        let url = remote
-            .url()
-            .with_context(|| format!("No remote url for package '{}'", pkg))?;
-
-        rm_rf::ensure_removed(dir::tmp())?;
-        Repository::clone(url, dir::tmp())?;
-
-        rm_rf::remove(dir::beeflib(&pkg)).unwrap();
-        let tmp_pkg_path = dir::home().join(&pkg);
-        fs::rename(dir::tmp(), &tmp_pkg_path)?;
-        fs_extra::dir::copy(&tmp_pkg_path, dir::beeflibs(), &CopyOptions::default()).unwrap();
-        rm_rf::remove(&tmp_pkg_path)?;
-
-        let v2 = if let Ok(manifest) =
-            toml::from_str::<Manifest>(&fs::read_to_string(dir::beeflib(&pkg).join("Grill.toml"))?)
-        {
-            Some(manifest.package.version)
-        } else {
-            None
-        };
-
-        println!();
-        if let (Some(v1), Some(v2)) = (v1, v2) {
-            println!(
-                "{} {} from {} to {}",
-                console::style("Updated").bright().green(),
-                pkg,
-                console::style(v1).bright().blue(),
-                console::style(v2).bright().blue()
-            );
-        } else {
-            println!("{} {}", console::style("Updated").bright().green(), pkg);
-        }
-
-        println!("-");
+        println!("{} {}", console::style("Updated").bright().green(), pkg);
     }
 
     Ok(())

@@ -1,14 +1,12 @@
-use std::iter;
-
 use anyhow::{bail, Result};
 use grill::dir;
 
 fn main() -> Result<()> {
     let result = run();
-    // let removed = rm_rf::ensure_removed(dir::tmp());
+    let removed = rm_rf::ensure_removed(dir::tmp());
 
     result?;
-    // removed?;
+    removed?;
 
     Ok(())
 }
@@ -17,9 +15,7 @@ fn run() -> Result<()> {
     let args = grill::cli().get_matches();
 
     if args.subcommand_name() != Some("update") && !dir::index().exists() {
-        grill::commands::update::exec(
-            &grill::cli().get_matches_from(iter::empty::<std::ffi::OsString>()),
-        )?;
+        grill::ops::update_index(true, false)?;
     }
 
     match args.subcommand() {

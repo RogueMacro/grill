@@ -2,7 +2,10 @@ pub mod commands;
 pub mod dir;
 pub mod ops;
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use clap::AppSettings;
 use prelude::App;
@@ -42,6 +45,42 @@ pub struct Manifest {
 pub struct Package {
     pub name: String,
     pub version: Version,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct BeefSpace {
+    pub file_version: u32,
+    #[serde(default)]
+    pub locked: HashSet<String>,
+    pub projects: HashMap<String, ProjectListEntry>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct ProjectListEntry {
+    pub path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct Workspace {
+    pub startup_project: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct BeefProj {
+    pub file_version: u32,
+    pub dependencies: HashMap<String, String>,
+    pub project: Project,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct Project {
+    pub name: String,
+    pub startup_object: String,
 }
 
 pub mod prelude {
