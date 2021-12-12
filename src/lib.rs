@@ -9,7 +9,7 @@ use std::{
 
 use clap::AppSettings;
 use prelude::App;
-use semver::Version;
+use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -38,7 +38,7 @@ pub struct IndexEntry {
 pub struct Manifest {
     pub package: Package,
     #[serde(default)]
-    pub dependencies: HashMap<String, Version>,
+    pub dependencies: HashMap<String, VersionReq>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
