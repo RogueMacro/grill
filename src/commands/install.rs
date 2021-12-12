@@ -1,6 +1,5 @@
 use crate::{dir, prelude::*, Manifest};
 
-// use fs_extra::dir::CopyOptions;
 use git2::{build::RepoBuilder, FetchOptions, RemoteCallbacks};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{fs, path::Path};
