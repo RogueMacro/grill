@@ -1,11 +1,35 @@
+use std::fs::File;
+
 use anyhow::{bail, Result};
-use grill::dir;
+use grill::paths;
 
 fn main() -> Result<()> {
-    let result = run();
-    let removed = rm_rf::ensure_removed(dir::tmp());
+    let console_logger = Box::new(
+        env_logger::builder()
+            .format_timestamp(None)
+            .format_target(false)
+            .build(),
+    );
+    let file_logger = simplelog::WriteLogger::new(
+        log::LevelFilter::max(),
+        Default::default(),
+        File::create(paths::home().join("log.txt"))?,
+    );
+    multi_log::MultiLogger::init(vec![console_logger, file_logger], log::Level::Trace)?;
 
-    result?;
+    let result = run();
+    let removed = rm_rf::ensure_removed(paths::tmp());
+
+    if let Err(err) = result {
+        println!();
+        if let Some(source) = err.source() {
+            log::error!("{}\n\nCaused by:\n    {}", err, source);
+        } else {
+            log::error!("{}", err);
+        }
+        println!();
+    }
+
     removed?;
 
     Ok(())
@@ -14,20 +38,19 @@ fn main() -> Result<()> {
 fn run() -> Result<()> {
     let args = grill::cli().get_matches();
 
-    if args.subcommand_name() != Some("update") && !dir::index().exists() {
-        grill::ops::update_index(true, false)?;
-    }
-
     match args.subcommand() {
-        (cmd, Some(args)) => match cmd {
-            "add" => grill::commands::add::exec(args),
+        Some((cmd, args)) => match cmd {
             "install" => grill::commands::install::exec(args),
             "list" => grill::commands::list::exec(args),
+            "login" => grill::commands::login::exec(args),
+            "make" => grill::commands::make::exec(args),
+            "publish" => grill::commands::publish::exec(args),
+            "purge" => grill::commands::purge::exec(args),
             "remove" => grill::commands::remove::exec(args),
-            "update" => grill::commands::update::exec(args),
+            "update-index" => grill::commands::update_index::exec(args),
             _ => bail!("Unkown command: {}", cmd),
         },
-        _ => {
+        None => {
             grill::cli().print_help()?;
             Ok(())
         }

@@ -1,10 +1,10 @@
-use crate::{dir, prelude::*};
-
 use std::fs;
 
+use crate::{paths, prelude::*};
+
 pub fn cli() -> App {
-    subcommand("list").about("List all installed packages").arg(
-        Arg::with_name("themes")
+    App::new("list").about("List all installed packages").arg(
+        Arg::new("themes")
             .long("themes")
             .help("List installed themes"),
     )
@@ -12,9 +12,9 @@ pub fn cli() -> App {
 
 pub fn exec(args: &ArgMatches) -> Result<()> {
     let dir = if args.is_present("themes") {
-        dir::themes()
+        paths::themes()
     } else {
-        dir::pkgs()
+        paths::pkgs()
     };
 
     for entry in fs::read_dir(dir)? {

@@ -2,23 +2,31 @@
 name = "grill"
 version = "0.1.0"
 edition = "2021"
-authors = ["RogueMacro <william.tetlie@gmail.com>"]
+authors = ["William Tetlie <william.tetlie@gmail.com>"]
 license-file = "LICENSE"
 description = "A package manager for the Beef Programming Language"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-anyhow = "1.0"
-clap = "2.34"
-console = "0.15"
+anyhow = "1.0.53"
+clap = "3.0.10"
+console = "0.15.0"
+derivative = "2.2.0"
 dialoguer = "0.9"
-dirs = "4.0"
-git2 = "0.13"
+env_logger = "0.9.0"
+dirs = "4.0.0"
+git2 = "0.13.25"
+indexmap = "1.8.0"
 indicatif = "0.17.0-beta.1"
-reqwest = "0.11"
-rm_rf = "0.6"
-semver = { version = "1.0", features = ["serde"] }
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.5"
-url = { version = "2.2", features = ["serde"] }
+itertools = "0.10.3"
+log = "0.4.14"
+maplit = "1.0.2"
+multi_log = "0.1.2"
+reqwest = { version = "0.11.9", features = ["blocking", "json"] }
+rm_rf = "0.6.1"
+semver = { version = "1.0.4", features = ["serde"] }
+serde = { version = "1.0.133", features = ["derive"] }
+serde_json = "1.0.75"
+simplelog = "0.11.2"
+toml = "0.5.8"
+url = { version = "2.2.2", features = ["serde"] }

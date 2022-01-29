@@ -3,6 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub const PACKAGE_FILE: &'static str = "Package.toml";
+pub const LOCK_FILE: &'static str = "Package.lock";
+
 pub fn pkg<P>(pkg: P) -> PathBuf
 where
     P: AsRef<Path>,
@@ -20,6 +23,10 @@ pub fn tmp() -> PathBuf {
 
 pub fn index() -> PathBuf {
     home().join("index.toml")
+}
+
+pub fn token() -> PathBuf {
+    home().join("token")
 }
 
 pub fn home() -> PathBuf {
