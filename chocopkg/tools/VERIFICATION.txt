@@ -1,0 +1,11 @@
+Grill is made by RogueMacro (https://github.com/RogueMacro/grill).
+
+Verification steps:
+
+- Ensure you have Git and Cargo installed
+- Run `git clone https://github.com/RogueMacro/grill.git`
+- Switch to the tag of the released version. For instance:
+    `git checkout 0.1.3`
+- Run `cargo build --release`
+- Verify that the checksum of the exe (found at target/release/grill.exe) matches
+    the checksum shown on the package page of the community repository.
