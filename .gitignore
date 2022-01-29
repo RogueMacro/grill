@@ -1,5 +1,10 @@
+/.vscode/
+
 /target
 
 /dummy
 /dummy2
 /proj
+
+chocopkg/tools/grill.exe
+*.nupkg
