@@ -6,7 +6,8 @@ Browse packages and manage your own at https://grillpm.vercel.app/
 
 # Getting started
 
-Download the [latest release of the CLI](https://github.com/RogueMacro/grill/releases/latest).
+Download the latest release of the CLI from either [GitHub Releases](https://github.com/RogueMacro/grill/releases/latest) or [Chocolatey](https://community.chocolatey.org/packages/grill/0.1.0).
+
 Add a `Package.toml` manifest file in the root directory of your project.
 Here is an example manifest:
 
