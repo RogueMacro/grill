@@ -18,7 +18,6 @@ pub fn cli() -> App {
         .subcommand(commands::make::cli())
         .subcommand(commands::publish::cli())
         .subcommand(commands::purge::cli())
-        .subcommand(commands::remove::cli())
         .subcommand(commands::update_index::cli())
 }
 

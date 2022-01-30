@@ -46,7 +46,6 @@ fn run() -> Result<()> {
             "make" => grill::commands::make::exec(args),
             "publish" => grill::commands::publish::exec(args),
             "purge" => grill::commands::purge::exec(args),
-            "remove" => grill::commands::remove::exec(args),
             "update-index" => grill::commands::update_index::exec(args),
             _ => bail!("Unkown command: {}", cmd),
         },
