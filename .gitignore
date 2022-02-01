@@ -6,5 +6,5 @@
 /dummy2
 /proj
 
-chocopkg/tools/grill.exe
+choco/tools/grill.exe
 *.nupkg
