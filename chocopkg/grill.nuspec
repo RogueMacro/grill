@@ -37,7 +37,11 @@ This is a nuspec. It mostly adheres to https://docs.nuget.org/create/Nuspec-Refe
     <title>grill</title>
     <authors>William Moe Tetlie</authors>
     <!-- projectUrl is required for the community feed -->
-    <projectUrl>https://github.com/roguemacro/grill</projectUrl>
+    <projectUrl>https://grillpm.vercel.app/</projectUrl>
+    <projectSourceUrl>https://github.com/roguemacro/grill/</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/roguemacro/grill/issues/</bugTrackerUrl>
+    <!-- <docsUrl>https://grillpm.vercel.app/book/</docsUrl> -->
+    
     <!-- There are a number of CDN Services that can be used for hosting the Icon for a package. More information can be found here: https://docs.chocolatey.org/en-us/create/create-packages#package-icon-guidelines -->
     <!-- Here is an example using Githack -->
     <!--<iconUrl>http://rawcdn.githack.com/__REPLACE_YOUR_REPO__/master/icons/grill.png</iconUrl>-->
