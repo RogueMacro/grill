@@ -11,6 +11,18 @@ use crate::{manifest::Manifest, resolver::resolve};
 
 pub type Lock = HashMap<String, HashSet<Version>>;
 
+pub fn is_corrupt(lock: &Lock) -> bool {
+    for (_, vset) in lock {
+        for v in vset.iter() {
+            if vset.iter().any(|v2| v.major == v2.major) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 pub fn validate(pkg_path: &Path) -> Result<bool> {
     let deps = Manifest::from_pkg(pkg_path)?.dependencies;
 
@@ -51,7 +63,12 @@ pub fn generate(pkg_path: &Path) -> Result<Lock> {
 
     let lock_path = pkg_path.join(crate::paths::LOCK_FILE);
     let previous_lock = if lock_path.exists() {
-        Some(toml::from_str(&fs::read_to_string(lock_path)?)?)
+        let lock = toml::from_str(&fs::read_to_string(lock_path)?)?;
+        if is_corrupt(&lock) {
+            None
+        } else {
+            Some(lock)
+        }
     } else {
         None
     };

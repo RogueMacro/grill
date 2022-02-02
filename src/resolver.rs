@@ -63,7 +63,7 @@ fn activate<'a>(
     {
         if let Some(versions) = activated.get(dep) {
             for v in versions.iter() {
-                if v.major == version.major && v.minor != version.minor {
+                if v.major == version.major {
                     local_conflicts.insert((dep, v.clone()));
                     continue 'version_loop;
                 }

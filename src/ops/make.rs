@@ -141,21 +141,11 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
                     .insert(String::from("Packages"), HashSet::new());
             }
 
-            ws.workspace_folders
-                .get_mut("Packages")
-                .unwrap()
-                .retain(|pkg| {
-                    if !pkgs.contains_key(pkg) {
-                        ws.projects.remove(pkg);
-                        false
-                    } else {
-                        true
-                    }
-                });
-
-            proj.dependencies
-                .retain(|pkg, _| manifest.dependencies.contains_key(pkg) && pkg != "corlib");
-
+            let ws_package_folder = ws.workspace_folders.get_mut("Packages").unwrap();
+            ws.projects.retain(|proj, _| {
+                pkgs.contains_key(proj) || manifest.dependencies.contains_key(proj)
+            });
+            ws_package_folder.retain(|pkg| pkgs.contains_key(pkg));
             ws.projects.insert(
                 String::from("corlib"),
                 beef::ProjectEntry {
@@ -164,6 +154,9 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
                 },
             );
             ws.locked.insert(String::from("corlib"));
+
+            proj.dependencies
+                .retain(|pkg, _| manifest.dependencies.contains_key(pkg));
             proj.dependencies
                 .insert(String::from("corlib"), String::from("*"));
 
@@ -178,10 +171,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
 
                 ws.locked.insert(ident.clone());
 
-                ws.workspace_folders
-                    .get_mut("Packages")
-                    .unwrap()
-                    .insert(ident.clone());
+                ws_package_folder.insert(ident.clone());
 
                 if manifest
                     .dependencies
