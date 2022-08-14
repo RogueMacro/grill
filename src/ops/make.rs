@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     path::Path,
+    time::Duration,
 };
 
 use anyhow::Context;
@@ -20,7 +21,7 @@ const COMPASS: Emoji = Emoji("🧭 ", "");
 const LOOKING_GLASS: Emoji = Emoji("🔍 ", "");
 const TRUCK: Emoji = Emoji("🚚 ", "");
 const PACKAGE: Emoji = Emoji("📦 ", "");
-const BEEF: Emoji = Emoji("🥩 ", "");
+const SPAGHETTI: Emoji = Emoji("🍝 ", "");
 
 pub fn make(path: &Path, silent: bool) -> Result<()> {
     let manifest = Manifest::from_pkg(&path)?;
@@ -82,7 +83,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
             let progress = multi.add(
                 ProgressBar::new(1).with_style(
                     ProgressStyle::default_bar()
-                        .template("{prefix:>12.bright.cyan} [{bar:11}]")
+                        .template("{prefix:>12.bright.cyan} [{bar:11}]")?
                         .progress_chars("=> "),
                 ),
             );
@@ -94,10 +95,14 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
                 );
                 progress.set_style(
                     ProgressStyle::default_bar()
-                        .template("{msg:>12} [{bar:11}]")
+                        .template("{msg:>12} [{bar:11}]")?
                         .progress_chars("=> "),
                 );
-                progress.set_message(format!("{} / {}", 0, progress.length()));
+                progress.set_message(format!(
+                    "{} / {}",
+                    0,
+                    progress.length().ok_or(anyhow!("No progress length"))?
+                ));
             }
 
             let mut pkgs = HashMap::new();
@@ -111,7 +116,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
                         progress.set_message(format!(
                             "{} / {}",
                             progress.position(),
-                            progress.length()
+                            progress.length().ok_or(anyhow!("No progress length"))?
                         ));
                     }
                 }
@@ -189,7 +194,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
     )?;
 
     if !silent {
-        println!("\n{:>13}{}Enjoy your meal!", " ", BEEF);
+        println!("\n{:>13}{}Enjoy your spaghetti!", " ", SPAGHETTI);
     }
 
     Ok(())
@@ -209,7 +214,7 @@ where
     F: FnOnce(&MultiProgress, &ProgressBar) -> Result<T>,
 {
     let spinner_style = ProgressStyle::default_spinner()
-        .template("{msg} {spinner}")
+        .template("{msg} {spinner}")?
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈✔");
     let progress = multi.insert(
         step as usize - 1,
@@ -223,7 +228,7 @@ where
             .with_style(spinner_style),
     );
     if !silent {
-        progress.enable_steady_tick(100);
+        progress.enable_steady_tick(Duration::from_millis(100));
     }
 
     let result = func(multi, &progress)?;

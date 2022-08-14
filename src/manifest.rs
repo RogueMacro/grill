@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Manifest {
     pub package: Package,
     #[serde(default)]
-    pub dependencies: HashMap<String, VersionReq>,
+    pub dependencies: HashMap<String, Dependency>,
 }
 
 impl Manifest {
@@ -23,10 +23,35 @@ impl Manifest {
         )?;
         Ok(manifest)
     }
+
+    /// Get dependencies with requirements.
+    /// Ignores git dependencies.
+    pub fn deps_with_req(&self) -> impl Iterator<Item = (&String, &VersionReq)> {
+        self.dependencies.iter().filter_map(|(key, val)| {
+            if let Dependency::Simple(req) = val {
+                Some((key, req))
+            } else {
+                None
+            }
+        })
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Hash, PartialEq, Eq)]
 pub struct Package {
     pub name: String,
     pub version: Version,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(untagged)]
+pub enum Dependency {
+    Simple(VersionReq),
+    Git(GitDependency),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GitDependency {
+    pub git: String,
+    pub rev: Option<String>,
 }

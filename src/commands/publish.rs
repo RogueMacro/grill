@@ -1,8 +1,9 @@
-use std::fs;
+use std::{collections::HashMap, fs};
 
 use console::style;
 use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use git2::{Oid, Repository};
+use semver::VersionReq;
 use serde_json::json;
 
 use crate::{index, manifest::Manifest, paths, prelude::*};
@@ -20,7 +21,7 @@ pub fn cli() -> App {
 pub fn exec(args: &ArgMatches) -> Result<()> {
     let access_token = fs::read_to_string(paths::token())?;
     let manifest = Manifest::from_pkg("./")?;
-    let package = manifest.package.name;
+    let package = manifest.package.name.clone();
     let version = manifest.package.version.to_string();
 
     let repo = Repository::open(".")?;
@@ -63,7 +64,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
             "metadata": json!({
                 "version": version.clone(),
                 "revision": rev,
-                "dependencies": manifest.dependencies
+                "dependencies": manifest.deps_with_req().collect::<HashMap<&String, &VersionReq>>()
             })
         });
         if !index.contains_key(&package) {
@@ -91,10 +92,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
             );
         }
 
-        let res = reqwest::blocking::Client::new()
-            .post("http://grillpm.vercel.app/api/publish")
-            .json(&body)
-            .send()?;
+        let res = crate::web::api("publish", &body)?;
 
         if let Err(err) = res.error_for_status_ref() {
             let body = res

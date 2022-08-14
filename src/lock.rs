@@ -5,16 +5,16 @@ use std::{
 };
 
 use anyhow::Result;
-use semver::{Version, VersionReq};
+use semver::Version;
 
 use crate::{manifest::Manifest, resolver::resolve};
 
 pub type Lock = HashMap<String, HashSet<Version>>;
 
 pub fn is_corrupt(lock: &Lock) -> bool {
-    for (_, vset) in lock {
-        for v in vset.iter() {
-            if vset.iter().any(|v2| v.major == v2.major) {
+    for (_, versions) in lock {
+        for v in versions.iter() {
+            if versions.iter().any(|v2| v.major == v2.major) {
                 return true;
             }
         }
@@ -24,7 +24,7 @@ pub fn is_corrupt(lock: &Lock) -> bool {
 }
 
 pub fn validate(pkg_path: &Path) -> Result<bool> {
-    let deps = Manifest::from_pkg(pkg_path)?.dependencies;
+    let manifest = Manifest::from_pkg(pkg_path)?;
 
     let file_path = pkg_path.join(crate::paths::LOCK_FILE);
     if !file_path.exists() {
@@ -32,20 +32,20 @@ pub fn validate(pkg_path: &Path) -> Result<bool> {
     }
 
     let lock: Lock = toml::from_str(&fs::read_to_string(file_path)?)?;
-    Ok(validate_lock(&deps, &lock))
+    Ok(validate_lock(&manifest, &lock))
 }
 
-fn validate_lock(deps: &HashMap<String, VersionReq>, lock: &Lock) -> bool {
+fn validate_lock<'a>(manifest: &Manifest, lock: &Lock) -> bool {
     log::trace!("Validation lock");
-    log::trace!("Dependencies: {:#?}", deps);
+    log::trace!("Dependencies: {:#?}", manifest.dependencies);
     log::trace!("Lock: {:#?}", lock);
 
-    if deps.len() != lock.len() {
+    if manifest.dependencies.len() != lock.len() {
         log::trace!("Length doesn't match");
         return false;
     }
 
-    for (dep, req) in deps {
+    for (dep, req) in manifest.deps_with_req() {
         if !lock
             .get(dep)
             .map_or(false, |vset| vset.iter().any(|v| req.matches(v)))
@@ -73,7 +73,9 @@ pub fn generate(pkg_path: &Path) -> Result<Lock> {
         None
     };
 
-    let resolved = resolve(&manifest, previous_lock.as_ref())?;
+    let index = crate::index::parse(false, false)?;
+
+    let resolved = resolve(&manifest, previous_lock.as_ref(), &index)?;
 
     let lock_file = toml::to_string(&resolved)?;
     fs::write(pkg_path.join(crate::paths::LOCK_FILE), lock_file)?;

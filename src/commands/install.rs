@@ -49,7 +49,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let cli_progress = ProgressBar::new(1)
         .with_style(
             ProgressStyle::default_bar()
-                .template("{prefix:>12.bright.green} {msg} [{bar:40}]")
+                .template("{prefix:>12.bright.green} {msg} [{bar:40}]")?
                 .progress_chars("=> "),
         )
         .with_prefix("Installing")

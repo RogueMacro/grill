@@ -17,8 +17,27 @@ fn main() -> Result<()> {
     );
     multi_log::MultiLogger::init(vec![console_logger, file_logger], log::Level::Trace)?;
 
-    let result = run();
-    let removed = rm_rf::ensure_removed(paths::tmp());
+    rm_rf::ensure_removed(paths::tmp())?;
+
+    let result = {
+        let args = grill::cli().get_matches();
+        match args.subcommand() {
+            Some((cmd, args)) => match cmd {
+                "install" => grill::commands::install::exec(args),
+                "list" => grill::commands::list::exec(args),
+                "login" => grill::commands::login::exec(args),
+                "make" => grill::commands::make::exec(args),
+                "publish" => grill::commands::publish::exec(args),
+                "purge" => grill::commands::purge::exec(args),
+                "update-index" => grill::commands::update_index::exec(args),
+                _ => bail!("Unkown command: {}", cmd),
+            },
+            None => {
+                grill::cli().print_help()?;
+                Ok(())
+            }
+        }
+    };
 
     if let Err(err) = result {
         println!();
@@ -30,28 +49,7 @@ fn main() -> Result<()> {
         println!();
     }
 
-    removed?;
+    rm_rf::ensure_removed(paths::tmp())?;
 
     Ok(())
-}
-
-fn run() -> Result<()> {
-    let args = grill::cli().get_matches();
-
-    match args.subcommand() {
-        Some((cmd, args)) => match cmd {
-            "install" => grill::commands::install::exec(args),
-            "list" => grill::commands::list::exec(args),
-            "login" => grill::commands::login::exec(args),
-            "make" => grill::commands::make::exec(args),
-            "publish" => grill::commands::publish::exec(args),
-            "purge" => grill::commands::purge::exec(args),
-            "update-index" => grill::commands::update_index::exec(args),
-            _ => bail!("Unkown command: {}", cmd),
-        },
-        None => {
-            grill::cli().print_help()?;
-            Ok(())
-        }
-    }
 }

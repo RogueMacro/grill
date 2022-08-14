@@ -30,7 +30,7 @@ pub fn token() -> PathBuf {
 }
 
 pub fn home() -> PathBuf {
-    dirs::home_dir().unwrap().join(".grill")
+    ensure_exists(dirs::home_dir().unwrap().join(".grill"))
 }
 
 pub fn beeflibs() -> PathBuf {

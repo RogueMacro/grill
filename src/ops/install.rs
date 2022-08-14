@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf, time::Duration};
 
 use anyhow::Context;
 use git2::Repository;
@@ -122,7 +122,7 @@ where
         let install_progress = progress.add(
             ProgressBar::new_spinner().with_style(
                 ProgressStyle::default_spinner()
-                    .template("{spinner:>11}> {msg}")
+                    .template("{spinner:>11}> {msg}")?
                     .tick_chars("=\\|/==="),
             ),
         );
@@ -130,12 +130,12 @@ where
             ProgressBar::new(pkgs.len() as u64)
                 .with_style(
                     ProgressStyle::default_bar()
-                        .template("{prefix:>12.bright.cyan} [{bar:40}] {pos}/{len}")
+                        .template("{prefix:>12.bright.cyan} [{bar:40}] {pos}/{len}")?
                         .progress_chars("=> "),
                 )
                 .with_prefix("Fetching"),
         );
-        install_progress.enable_steady_tick(150);
+        install_progress.enable_steady_tick(Duration::from_millis(150));
         fetch_progress.tick();
 
         for (pkg, version) in pkgs.iter() {
