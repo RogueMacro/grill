@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const PACKAGE_FILE: &'static str = "Package.toml";
-pub const LOCK_FILE: &'static str = "Package.lock";
+pub const MANIFEST_FILENAME: &'static str = "Package.toml";
+pub const LOCK_FILENAME: &'static str = "Package.lock";
 
 pub fn pkg<P>(pkg: P) -> PathBuf
 where

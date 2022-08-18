@@ -29,7 +29,7 @@ fn main() -> Result<()> {
                 "make" => grill::commands::make::exec(args),
                 "publish" => grill::commands::publish::exec(args),
                 "purge" => grill::commands::purge::exec(args),
-                "update-index" => grill::commands::update_index::exec(args),
+                "update" => grill::commands::update::exec(args),
                 _ => bail!("Unkown command: {}", cmd),
             },
             None => {

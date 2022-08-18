@@ -91,7 +91,7 @@ pub fn install_git(url: &Url, rev: Option<&str>, pkg_ident: Option<&String>) -> 
             .context("Failed to write project file")?;
     }
 
-    if path.join(paths::PACKAGE_FILE).exists() {
+    if path.join(paths::MANIFEST_FILENAME).exists() {
         crate::ops::make(&path, true)?;
     }
 

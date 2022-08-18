@@ -61,10 +61,10 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
         silent,
         |_, _| {
             if !lock::validate(&path)? {
-                lock::generate(&path)
+                lock::generate(&path, false)
             } else {
                 let lock: Lock =
-                    toml::from_str(&fs::read_to_string(path.join(crate::paths::LOCK_FILE))?)
+                    toml::from_str(&fs::read_to_string(path.join(crate::paths::LOCK_FILENAME))?)
                         .context("Invalid lock")?;
                 Ok(lock)
             }

@@ -10,7 +10,7 @@ use crate::{index, manifest::Manifest, paths, prelude::*};
 
 pub fn cli() -> App {
     App::new("publish")
-        .about("Publishes the current package version")
+        .about("Publish the current package version")
         .arg(
             Arg::new("rev")
                 .short('r')
@@ -64,7 +64,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
             "metadata": json!({
                 "version": version.clone(),
                 "revision": rev,
-                "dependencies": manifest.deps_with_req().collect::<HashMap<&String, &VersionReq>>()
+                "dependencies": manifest.simple_deps().collect::<HashMap<&String, &VersionReq>>()
             })
         });
         if !index.contains_key(&package) {

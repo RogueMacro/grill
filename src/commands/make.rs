@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 pub fn cli() -> App {
     App::new("make")
-        .about("Installs the neccessary dependencies and makes a workspace")
+        .about("Install the neccessary dependencies and make a workspace")
         .arg(
             Arg::new("path")
                 .long("path")

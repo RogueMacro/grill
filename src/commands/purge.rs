@@ -3,7 +3,7 @@ use std::fs;
 use crate::prelude::*;
 
 pub fn cli() -> App {
-    App::new("purge").about("Deletes all installed packages")
+    App::new("purge").about("Delete all installed packages")
 }
 
 pub fn exec(_: &ArgMatches) -> Result<()> {

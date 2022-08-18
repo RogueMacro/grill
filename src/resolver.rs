@@ -45,7 +45,6 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
             // The available versions are sorted so that the top element
             // is always the latest version.
             while let Some(version) = candidate.available_versions.pop() {
-                log::trace!("trying v{} for {}", version, candidate.name);
                 if !candidates
                     .iter()
                     .enumerate()
@@ -62,7 +61,7 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
                             && i_version != &version;
 
                         if is_conflicting {
-                            log::trace!("conflicting with: {} v{}", i_candidate.name, i_version);
+                            log::trace!("Conflicting with: {} v{}", i_candidate.name, i_version);
                         }
 
                         is_conflicting
@@ -169,6 +168,7 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
     }
 
     if failed {
+        log::trace!("Resolution failed");
         Err(anyhow!("Failed to resolve dependencies"))
     } else {
         let mut lock = Lock::new();
@@ -205,16 +205,16 @@ impl Candidate {
 
     pub fn update_available_versions(&mut self, index: &Index) {
         self.available_versions.clear();
-        self.available_versions.extend(
-            index
-                .get(&self.name)
-                .unwrap()
-                .versions
-                .keys()
-                .filter(|v| self.req.matches(v))
-                .map(|v| v.clone())
-                .sorted_unstable_by(|v1, v2| v1.cmp(&v2)),
-        );
+        if let Some(entry) = index.get(&self.name) {
+            self.available_versions.extend(
+                entry
+                    .versions
+                    .keys()
+                    .filter(|v| self.req.matches(v))
+                    .map(|v| v.clone())
+                    .sorted_unstable_by(|v1, v2| v1.cmp(&v2)),
+            );
+        }
     }
 }
 

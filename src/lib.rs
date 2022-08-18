@@ -20,7 +20,7 @@ pub fn cli() -> App {
         .subcommand(commands::make::cli())
         .subcommand(commands::publish::cli())
         .subcommand(commands::purge::cli())
-        .subcommand(commands::update_index::cli())
+        .subcommand(commands::update::cli())
 }
 
 pub mod prelude {

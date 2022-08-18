@@ -4,4 +4,4 @@ pub mod login;
 pub mod make;
 pub mod publish;
 pub mod purge;
-pub mod update_index;
+pub mod update;

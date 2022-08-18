@@ -5,6 +5,7 @@ use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
 pub struct Manifest {
     pub package: Package,
     #[serde(default)]
@@ -18,15 +19,15 @@ impl Manifest {
     {
         let path = path.as_ref();
         let manifest = toml::from_str(
-            &std::fs::read_to_string(path.join(crate::paths::PACKAGE_FILE))
+            &std::fs::read_to_string(path.join(crate::paths::MANIFEST_FILENAME))
                 .context(format!("No manifest found at in '{}'", path.display()))?,
         )?;
         Ok(manifest)
     }
 
-    /// Get dependencies with requirements.
+    /// Get simple dependencies with requirements.
     /// Ignores git dependencies.
-    pub fn deps_with_req(&self) -> impl Iterator<Item = (&String, &VersionReq)> {
+    pub fn simple_deps(&self) -> impl Iterator<Item = (&String, &VersionReq)> {
         self.dependencies.iter().filter_map(|(key, val)| {
             if let Dependency::Simple(req) = val {
                 Some((key, req))
@@ -38,6 +39,7 @@ impl Manifest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Hash, PartialEq, Eq)]
+#[serde(rename_all = "PascalCase")]
 pub struct Package {
     pub name: String,
     pub version: Version,
@@ -51,6 +53,7 @@ pub enum Dependency {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
 pub struct GitDependency {
     pub git: String,
     pub rev: Option<String>,
