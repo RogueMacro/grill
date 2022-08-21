@@ -5,17 +5,10 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
 use console::Emoji;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-use crate::{
-    beef,
-    index::{self},
-    lock::{self, Lock},
-    manifest::Manifest,
-    prelude::*,
-};
+use crate::{beef, index, lock, manifest::Manifest, prelude::*};
 
 const COMPASS: Emoji = Emoji("🧭 ", "");
 const LOOKING_GLASS: Emoji = Emoji("🔍 ", "");
@@ -61,12 +54,9 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
         silent,
         |_, _| {
             if !lock::validate(&path)? {
-                lock::generate(&path, false)
+                lock::generate(&path, false, true)
             } else {
-                let lock: Lock =
-                    toml::from_str(&fs::read_to_string(path.join(crate::paths::LOCK_FILENAME))?)
-                        .context("Invalid lock")?;
-                Ok(lock)
+                lock::read(path.join(crate::paths::LOCK_FILENAME))
             }
         },
     )?;

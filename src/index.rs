@@ -26,7 +26,7 @@ pub struct VersionMetadata {
 pub fn update(with_spinner: bool, clear_after: bool) -> Result<()> {
     log::trace!("Updating index");
 
-    rm_rf::ensure_removed(paths::tmp())?;
+    rm_rf::ensure_removed(paths::tmp()).context("Failed to remove tmp folder")?;
 
     let spinner = ProgressBar::new_spinner();
     if with_spinner {
@@ -37,8 +37,10 @@ pub fn update(with_spinner: bool, clear_after: bool) -> Result<()> {
         spinner.enable_steady_tick(Duration::from_millis(100));
     }
 
-    Repository::clone("https://github.com/RogueMacro/grill-index", paths::tmp())?;
-    fs::copy(paths::tmp().join("index.toml"), paths::index())?;
+    Repository::clone("https://github.com/RogueMacro/grill-index", paths::tmp())
+        .context("Failed to clone repository")?;
+    fs::copy(paths::tmp().join("index.toml"), paths::index())
+        .context("Failed to move index file")?;
 
     if with_spinner {
         if clear_after {

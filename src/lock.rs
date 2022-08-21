@@ -4,12 +4,38 @@ use std::{
     path::Path,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use semver::Version;
 
 use crate::{manifest::Manifest, resolver::resolve};
 
 pub type Lock = HashMap<String, HashSet<Version>>;
+
+pub fn read<P>(path: P) -> Result<Lock>
+where
+    P: AsRef<Path>,
+{
+    Ok(
+        toml::from_str(&fs::read_to_string(path.as_ref()).with_context(|| {
+            format!(
+                "Failed to read lock file: {}",
+                path.as_ref().to_string_lossy()
+            )
+        })?)
+        .context("Failed to deserialize lock file")?,
+    )
+}
+
+pub fn write<P>(path: P, lock: &Lock) -> Result<()>
+where
+    P: AsRef<Path>,
+{
+    Ok(fs::write(
+        path,
+        toml::to_string(lock).context("Failed to serialize lock")?,
+    )
+    .context("Failed to write lock file")?)
+}
 
 pub fn validate(pkg_path: &Path) -> Result<bool> {
     let manifest = Manifest::from_pkg(pkg_path)?;
@@ -19,31 +45,35 @@ pub fn validate(pkg_path: &Path) -> Result<bool> {
         return Ok(false);
     }
 
-    let lock: Lock = toml::from_str(&fs::read_to_string(file_path)?)?;
+    let lock: Lock = self::read(file_path)?;
     Ok(validate_lock(&manifest, &lock))
 }
 
-fn validate_lock<'a>(manifest: &Manifest, lock: &Lock) -> bool {
+fn validate_lock(manifest: &Manifest, lock: &Lock) -> bool {
     log::trace!("Validating lock");
-
-    if manifest.dependencies.len() != lock.len() {
-        log::trace!("Length doesn't match");
-        return false;
-    }
 
     for (dep, req) in manifest.simple_deps() {
         if !lock.get(dep).map_or(false, |locked_versions| {
             locked_versions.iter().any(|v| req.matches(v))
         }) {
-            log::trace!("No match for {} {} in lock", dep, req);
+            log::trace!("Invalid lock: No match for {} {}", dep, req);
             return false;
         }
     }
 
-    for (_, versions) in lock {
-        for v in versions.iter() {
-            if versions.iter().any(|v2| v.major == v2.major) {
-                return false;
+    for (dep, versions) in lock {
+        for v1 in versions.iter() {
+            for v2 in versions.iter() {
+                if v1.major == v2.major && v1 != v2 {
+                    log::trace!(
+                        "Invalid lock: {} v{} is incompatible with {} v{}",
+                        dep,
+                        v1,
+                        dep,
+                        v2
+                    );
+                    return false;
+                }
             }
         }
     }
@@ -51,12 +81,12 @@ fn validate_lock<'a>(manifest: &Manifest, lock: &Lock) -> bool {
     true
 }
 
-pub fn generate(pkg_path: &Path, write_lock: bool) -> Result<Lock> {
-    let manifest = Manifest::from_pkg(pkg_path)?;
+pub fn generate(pkg_path: &Path, write_lock: bool, try_keep_lock: bool) -> Result<Lock> {
+    let manifest = Manifest::from_pkg(pkg_path).context("Failed to read manifest")?;
 
     let lock_path = pkg_path.join(crate::paths::LOCK_FILENAME);
-    let previous_lock = if lock_path.exists() {
-        let lock = toml::from_str(&fs::read_to_string(lock_path)?)?;
+    let previous_lock = if try_keep_lock && lock_path.exists() {
+        let lock = self::read(lock_path)?;
         if validate_lock(&manifest, &lock) {
             Some(lock)
         } else {
@@ -68,12 +98,11 @@ pub fn generate(pkg_path: &Path, write_lock: bool) -> Result<Lock> {
 
     let index = crate::index::parse(false, false)?;
 
-    let resolved = resolve(&manifest, previous_lock.as_ref(), &index)?;
+    let lock = resolve(&manifest, previous_lock.as_ref(), &index)?;
 
     if write_lock {
-        let lock_file = toml::to_string(&resolved)?;
-        fs::write(pkg_path.join(crate::paths::LOCK_FILENAME), lock_file)?;
+        self::write(pkg_path.join(crate::paths::LOCK_FILENAME), &lock)?;
     }
 
-    Ok(resolved)
+    Ok(lock)
 }

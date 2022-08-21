@@ -10,14 +10,10 @@ use crate::{
     manifest::{self, Manifest},
 };
 
-pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index) -> Result<Lock> {
+pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Result<Lock> {
     log::trace!(
         "Resolving dependency tree{}",
-        if previous_lock.is_some() {
-            " with previous lock"
-        } else {
-            ""
-        }
+        if lock.is_some() { " with lock" } else { "" }
     );
 
     // Add the root dependencies.
@@ -26,7 +22,7 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
         .iter()
         .filter_map(|(name, dep)| {
             if let manifest::Dependency::Simple(req) = dep {
-                Some(Candidate::new(name, req, index))
+                Some(Candidate::new(name, req, index, lock))
             } else {
                 None
             }
@@ -85,7 +81,7 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
 
                 candidates.extend(
                     deps.iter()
-                        .map(|(dep, req)| Candidate::new(dep, req, index)),
+                        .map(|(dep, req)| Candidate::new(dep, req, index, lock)),
                 );
 
                 // "Commit" this candidate to the list of candidates.
@@ -111,7 +107,7 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
                     // unset the version and make sure it is ready for
                     // picking another version.
                     candidates[i].version = None;
-                    candidates[i].update_available_versions(index);
+                    candidates[i].update_available_versions(index, lock);
                 }
 
                 i -= 1;
@@ -162,7 +158,7 @@ pub fn resolve(manifest: &Manifest, previous_lock: Option<&Lock>, index: &Index)
             candidates.extend(
                 missing_dependencies
                     .iter()
-                    .map(|(dep, req)| Candidate::new(dep, req, index)),
+                    .map(|(dep, req)| Candidate::new(dep, req, index, lock)),
             );
         }
     }
@@ -192,18 +188,18 @@ struct Candidate {
 }
 
 impl Candidate {
-    pub fn new(name: &str, req: &VersionReq, index: &Index) -> Self {
+    pub fn new(name: &str, req: &VersionReq, index: &Index, lock: Option<&Lock>) -> Self {
         let mut candidate = Self {
             name: name.to_owned(),
             req: req.clone(),
             version: None,
             available_versions: Vec::new(),
         };
-        candidate.update_available_versions(index);
+        candidate.update_available_versions(index, lock);
         candidate
     }
 
-    pub fn update_available_versions(&mut self, index: &Index) {
+    pub fn update_available_versions(&mut self, index: &Index, lock: Option<&Lock>) {
         self.available_versions.clear();
         if let Some(entry) = index.get(&self.name) {
             self.available_versions.extend(
@@ -214,6 +210,14 @@ impl Candidate {
                     .map(|v| v.clone())
                     .sorted_unstable_by(|v1, v2| v1.cmp(&v2)),
             );
+        }
+
+        if let Some(version) = lock
+            .and_then(|lock| lock.get(&self.name))
+            .and_then(|locked_versions| locked_versions.iter().find(|&v| self.req.matches(v)))
+        {
+            // Push the locked version to the top so it gets tried first.
+            self.available_versions.push(version.clone());
         }
     }
 }

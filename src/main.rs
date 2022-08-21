@@ -41,11 +41,15 @@ fn main() -> Result<()> {
 
     if let Err(err) = result {
         println!();
-        if let Some(source) = err.source() {
-            log::error!("{}\n\nCaused by:\n    {}", err, source);
-        } else {
-            log::error!("{}", err);
-        }
+
+        // if let Some(source) = err.source() {
+        //     log::error!("{}\n\nCaused by:\n    {}", err, source);
+        // } else {
+        //     log::error!("{}", err);
+        // }
+
+        log::error!("{}\n\nCaused by:\n    {}", err, err.root_cause());
+
         println!();
     }
 
