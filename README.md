@@ -11,12 +11,12 @@ Add a `Package.toml` manifest file in the root directory of your project.
 Here is an example manifest:
 
 ```toml
-[package]
-name = "foo"
-version = "0.1.0"
+[Package]
+Name = "Foo"
+Version = "0.1.0"
 
-[dependencies]
-bar = "1.3.2"
+[Dependencies]
+Bar = "1.3.2"
 ```
 
 After adding `Package.toml`, run `grill make` to build a workspace.
