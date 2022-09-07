@@ -49,7 +49,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let cli_progress = ProgressBar::new(1)
         .with_style(
             ProgressStyle::default_bar()
-                .template("{prefix:>12.bright.green} {msg} [{bar:40}]")
+                .template("{prefix:>12.bright.green} {msg} [{bar:40}]")?
                 .progress_chars("=> "),
         )
         .with_prefix("Installing")
@@ -86,11 +86,11 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let mut pkg = url.host().ok_or(anyhow!("No host in url"))?.to_string();
     pkg.push_str(&url.path().replace("/", "-").replace(".git", ""));
 
-    let manifest_path = paths::tmp().join(crate::paths::PACKAGE_FILE);
+    let manifest_path = paths::tmp().join(crate::paths::MANIFEST_FILENAME);
     let mut already_installed_prompt =
         "This package is already installed, do you want to update it?".to_owned();
     let has_manifest = if let Ok(file) = fs::read_to_string(manifest_path) {
-        let manifest: Manifest = toml::from_str(&file)?;
+        let manifest = Manifest::from_file(&file)?;
         pkg = manifest.package.name;
 
         let pkg_path = paths::beeflib(&pkg);

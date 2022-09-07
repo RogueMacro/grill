@@ -34,10 +34,14 @@ This is a nuspec. It mostly adheres to https://docs.nuget.org/create/Nuspec-Refe
 
     <!-- == SOFTWARE SPECIFIC SECTION == -->
     <!-- This section is about the software itself -->
-    <title>grill (Install)</title>
+    <title>grill</title>
     <authors>William Moe Tetlie</authors>
     <!-- projectUrl is required for the community feed -->
-    <projectUrl>https://github.com/roguemacro/grill</projectUrl>
+    <projectUrl>https://grillpm.vercel.app/</projectUrl>
+    <projectSourceUrl>https://github.com/roguemacro/grill/</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/roguemacro/grill/issues/</bugTrackerUrl>
+    <!-- <docsUrl>https://grillpm.vercel.app/book/</docsUrl> -->
+    
     <!-- There are a number of CDN Services that can be used for hosting the Icon for a package. More information can be found here: https://docs.chocolatey.org/en-us/create/create-packages#package-icon-guidelines -->
     <!-- Here is an example using Githack -->
     <!--<iconUrl>http://rawcdn.githack.com/__REPLACE_YOUR_REPO__/master/icons/grill.png</iconUrl>-->
@@ -49,7 +53,7 @@ This is a nuspec. It mostly adheres to https://docs.nuget.org/create/Nuspec-Refe
     <!--<docsUrl>At what url are the software docs located?</docsUrl>-->
     <!--<mailingListUrl></mailingListUrl>-->
     <!--<bugTrackerUrl></bugTrackerUrl>-->
-    <tags>grill,package-management,beef,beeflang</tags>
+    <tags>grill package-manager beef beeflang</tags>
     <summary>A package manager for the Beef Programming Language</summary>
     <description>A package manager for the Beef Programming Language</description>
     <!-- <releaseNotes>__REPLACE_OR_REMOVE__MarkDown_Okay</releaseNotes> -->

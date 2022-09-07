@@ -3,18 +3,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const PACKAGE_FILE: &'static str = "Package.toml";
-pub const LOCK_FILE: &'static str = "Package.lock";
+pub const MANIFEST_FILENAME: &'static str = "Package.toml";
+pub const LOCK_FILENAME: &'static str = "Package.lock";
 
-pub fn pkg<P>(pkg: P) -> PathBuf
+pub fn pkg<P>(ws: &P, pkg: &P) -> PathBuf
 where
-    P: AsRef<Path>,
+    P: AsRef<Path> + ?Sized,
 {
-    pkgs().join(pkg)
+    pkgs(ws).join(pkg)
 }
 
-pub fn pkgs() -> PathBuf {
-    ensure_exists(home().join("pkg"))
+pub fn pkgs<P>(ws: &P) -> PathBuf
+where
+    P: AsRef<Path> + ?Sized,
+{
+    ensure_exists(ws.as_ref().join("pkg"))
 }
 
 pub fn tmp() -> PathBuf {
@@ -30,7 +33,7 @@ pub fn token() -> PathBuf {
 }
 
 pub fn home() -> PathBuf {
-    dirs::home_dir().unwrap().join(".grill")
+    ensure_exists(dirs::home_dir().unwrap().join(".grill"))
 }
 
 pub fn beeflibs() -> PathBuf {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, time::Duration};
 
 use anyhow::{Context, Result};
 use git2::Repository;
@@ -24,7 +24,9 @@ pub struct VersionMetadata {
 }
 
 pub fn update(with_spinner: bool, clear_after: bool) -> Result<()> {
-    rm_rf::ensure_removed(paths::tmp())?;
+    log::trace!("Updating index");
+
+    rm_rf::ensure_removed(paths::tmp()).context("Failed to remove tmp folder")?;
 
     let spinner = ProgressBar::new_spinner();
     if with_spinner {
@@ -32,11 +34,13 @@ pub fn update(with_spinner: bool, clear_after: bool) -> Result<()> {
             "{:>10} index",
             console::style("Updating").bright().cyan()
         ));
-        spinner.enable_steady_tick(100);
+        spinner.enable_steady_tick(Duration::from_millis(100));
     }
 
-    Repository::clone("https://github.com/RogueMacro/grill-index", paths::tmp())?;
-    fs::copy(paths::tmp().join("index.toml"), paths::index())?;
+    Repository::clone("https://github.com/RogueMacro/grill-index", paths::tmp())
+        .context("Failed to clone repository")?;
+    fs::copy(paths::tmp().join("index.toml"), paths::index())
+        .context("Failed to move index file")?;
 
     if with_spinner {
         if clear_after {
@@ -53,6 +57,8 @@ pub fn update(with_spinner: bool, clear_after: bool) -> Result<()> {
 }
 
 pub fn parse(with_spinner: bool, clear_after: bool) -> Result<Index> {
+    log::trace!("Parsing index");
+
     let path = paths::index();
     toml::from_str::<Index>(&fs::read_to_string(&path)?).or_else(|err| {
         update(with_spinner, clear_after)?;
