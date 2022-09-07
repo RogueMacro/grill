@@ -6,29 +6,21 @@ Browse packages and manage your own at https://grillpm.vercel.app/
 
 # Getting started
 
-Download the latest release of the CLI from either [GitHub Releases](https://github.com/RogueMacro/grill/releases/latest) or [Chocolatey](https://community.chocolatey.org/packages/grill/0.1.0).
+Download the latest release of the CLI from [GitHub Releases](https://github.com/RogueMacro/grill/releases/latest).
 
-Add a `Package.toml` manifest file in the root directory of your project.
-Here is an example manifest:
+Run `grill new MyProject` or `grill init` for existing Beef Workspaces. After creating a project you can add dependencies and run `grill make` to build your workspace. Here is an example manifest:
 
 ```toml
 [Package]
-Name = "Foo"
+Name = "MyGui"
 Version = "0.1.0"
+Description = "A small GUI application"
 
 [Dependencies]
-Bar = "1.3.2"
+OpenGL = "3.3"
 ```
 
-After adding `Package.toml`, run `grill make` to build a workspace.
-
-**Note:** Any projects added manually to a workspace will be removed when running `grill make`, unless they are specified in `Package.toml`. Git URLs, BeefLibs and relative dependencies are not supported yet.
-
-# Installing a package to BeefLibs
-
-You can install packages (or repositories) into the `BeefLibs` folder by using `grill install <package>` or `grill install --git <url>`. The library can then be added to workspaces in the IDE.
-
-**Note:** BeefLibs are not supported in packages (running `grill make` will remove those libraries from the workspace).
+**Note:** The workspace file is generated automatically by Grill. Changes to it will be reverted when building the workspace. Fields specified in project files will be preserved.
 
 # Publishing packages
 
@@ -36,3 +28,9 @@ To publish packages, you need to get your API token on the website at Account > 
 Run `grill login` and paste your token there.
 
 After logging in through the CLI, make sure you commit and push your changes, then run `grill publish` and confirm the version and commit. It will not succeed if the commit isn't found remotely.
+
+# Installing a package to BeefLibs
+
+You can install packages (or repositories) into the `BeefLibs` folder by using `grill install <package>` or `grill install --git <url>`. The library can then be added to workspaces in the IDE.
+
+**Note:** BeefLibs are not supported in packages (running `grill make` will remove those libraries from the workspace).
