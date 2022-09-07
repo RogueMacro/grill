@@ -23,6 +23,8 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
         .filter_map(|(name, dep)| {
             if let manifest::Dependency::Simple(req) = dep {
                 Some(Candidate::new(name, req, index, lock))
+            } else if let manifest::Dependency::Advanced(adv_dep) = dep {
+                Some(Candidate::new(name, &adv_dep.req, index, lock))
             } else {
                 None
             }
@@ -296,12 +298,15 @@ mod tests {
             package: Package {
                 name: String::from("a"),
                 version: Version::new(1, 0, 0),
+                description: String::from(""),
+                corlib: true,
             },
             dependencies: hashmap! {
                 String::from("b") => crate::manifest::Dependency::Simple(VersionReq::from_str("1.0").unwrap()),
                 String::from("c") => crate::manifest::Dependency::Simple(VersionReq::from_str("1.0").unwrap()),
                 String::from("d") => crate::manifest::Dependency::Simple(VersionReq::from_str("1.0").unwrap()),
             },
+            features: Default::default(),
         };
 
         (manifest, index)

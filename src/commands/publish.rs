@@ -6,7 +6,12 @@ use git2::{Oid, Repository};
 use semver::VersionReq;
 use serde_json::json;
 
-use crate::{index, manifest::Manifest, paths, prelude::*};
+use crate::{
+    index,
+    manifest::{self, Manifest},
+    paths,
+    prelude::*,
+};
 
 pub fn cli() -> App {
     App::new("publish")
@@ -19,12 +24,18 @@ pub fn cli() -> App {
 }
 
 pub fn exec(args: &ArgMatches) -> Result<()> {
-    let access_token = fs::read_to_string(paths::token())?;
-    let manifest = Manifest::from_pkg("./")?;
+    let token_path = paths::token();
+    if !token_path.exists() {
+        log::info!("You have to log in to use this command. Run `grill login` first.");
+        return Ok(());
+    }
+
+    let access_token = fs::read_to_string(token_path)?;
+    let manifest = Manifest::from_pkg(".")?;
     let package = manifest.package.name.clone();
     let version = manifest.package.version.to_string();
 
-    let repo = Repository::open(".")?;
+    let repo = Repository::open(".").context("Failed to open repository")?;
     let commit = if let Some(rev) = args.value_of("rev") {
         let commit = repo
             .find_commit(Oid::from_str(rev)?)
@@ -38,35 +49,76 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     };
     let rev = commit.id().to_string();
 
+    let is_dirty = repo
+        .describe(git2::DescribeOptions::new().describe_all())?
+        .format(Some(
+            git2::DescribeFormatOptions::new().dirty_suffix("-dirty"),
+        ))?
+        .ends_with("-dirty");
+
     println!("{:>12} {}", style("Package").bright().yellow(), package);
     println!("{:>12} {}", style("Version").bright().yellow(), version);
     println!("{:>12} {}", style("Commit").bright().yellow(), style(&rev));
+
+    if is_dirty {
+        print!("{:>12}", style("(dirty)").bright().red());
+    } else {
+        print!("{:>12}", "");
+    }
+
     if let Some(msg) = commit.message() {
         println!(
-            "{:>14} {} {}",
+            " {} {} {}",
             style('"').italic(),
             msg.trim(),
             style('"').italic(),
         );
+    } else {
+        println!();
     }
     println!();
 
+    let prompt = if is_dirty {
+        "You have uncommitted changes. Do you still want to continue?"
+    } else {
+        "Publish?"
+    };
+
     if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Continue?")
+        .with_prompt(prompt)
         .interact()?
     {
         println!();
         index::update(true, true)?;
         let index = index::parse(false, false)?;
+
+        let mut deps: HashMap<String, VersionReq> = manifest
+            .simple_deps()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        for (_, feature) in manifest.features.optional.iter() {
+            if let manifest::Feature::Project(path) = feature {
+                let feature_manifest = Manifest::from_pkg(&path)?;
+                deps.extend(
+                    feature_manifest
+                        .simple_deps()
+                        .map(|(k, v)| (k.clone(), v.clone())),
+                );
+            }
+        }
+
         let mut body = json!({
             "access_token": access_token,
             "package": package.clone(),
             "metadata": json!({
                 "version": version.clone(),
                 "revision": rev,
-                "dependencies": manifest.simple_deps().collect::<HashMap<&String, &VersionReq>>()
+                "dependencies": deps,
+                "description": manifest.package.description
             })
         });
+
         if !index.contains_key(&package) {
             let remote_urls: Vec<String> = repo
                 .remotes()?

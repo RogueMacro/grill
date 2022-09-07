@@ -7,7 +7,7 @@ pub fn cli() -> App {
 }
 
 pub fn exec(_: &ArgMatches) -> Result<()> {
-    let path = crate::paths::pkgs();
+    let path = crate::paths::pkgs(".");
     let count = fs::read_dir(&path)?.count();
 
     if count == 0 {

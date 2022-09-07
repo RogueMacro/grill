@@ -90,7 +90,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let mut already_installed_prompt =
         "This package is already installed, do you want to update it?".to_owned();
     let has_manifest = if let Ok(file) = fs::read_to_string(manifest_path) {
-        let manifest: Manifest = toml::from_str(&file)?;
+        let manifest = Manifest::from_file(&file)?;
         pkg = manifest.package.name;
 
         let pkg_path = paths::beeflib(&pkg);

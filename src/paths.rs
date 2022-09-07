@@ -6,15 +6,18 @@ use std::{
 pub const MANIFEST_FILENAME: &'static str = "Package.toml";
 pub const LOCK_FILENAME: &'static str = "Package.lock";
 
-pub fn pkg<P>(pkg: P) -> PathBuf
+pub fn pkg<P>(ws: &P, pkg: &P) -> PathBuf
 where
-    P: AsRef<Path>,
+    P: AsRef<Path> + ?Sized,
 {
-    pkgs().join(pkg)
+    pkgs(ws).join(pkg)
 }
 
-pub fn pkgs() -> PathBuf {
-    ensure_exists(home().join("pkg"))
+pub fn pkgs<P>(ws: &P) -> PathBuf
+where
+    P: AsRef<Path> + ?Sized,
+{
+    ensure_exists(ws.as_ref().join("pkg"))
 }
 
 pub fn tmp() -> PathBuf {

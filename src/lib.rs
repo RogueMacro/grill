@@ -2,6 +2,7 @@ pub mod beef;
 pub mod commands;
 pub mod index;
 pub mod lock;
+pub mod log;
 pub mod manifest;
 pub mod ops;
 pub mod paths;
@@ -14,10 +15,12 @@ pub fn cli() -> App {
     App::new("grill")
         .about(clap::crate_description!())
         .version(clap::crate_version!())
+        .subcommand(commands::init::cli())
         .subcommand(commands::install::cli())
         .subcommand(commands::list::cli())
         .subcommand(commands::login::cli())
         .subcommand(commands::make::cli())
+        .subcommand(commands::new::cli())
         .subcommand(commands::publish::cli())
         .subcommand(commands::purge::cli())
         .subcommand(commands::update::cli())

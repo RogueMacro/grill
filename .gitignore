@@ -2,9 +2,7 @@
 
 /target
 
-/dummy
-/dummy2
-/proj
-
 choco/tools/grill.exe
 *.nupkg
+
+/testing_cmd

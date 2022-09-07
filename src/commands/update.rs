@@ -11,11 +11,17 @@ pub fn cli() -> App {
     App::new("update")
         .about("Update dependencies to the latest version")
         .arg(Arg::new("quiet").long("quiet").short('q'))
-        .arg(Arg::new("grill").long("grill").help("not yet implemented"))
+        // .arg(
+        //     Arg::new("grill")
+        //         .long("grill")
+        //         .help("not yet implemented")
+        //         .conflicts_with("index"),
+        // )
         .arg(
             Arg::new("index")
                 .long("index")
-                .help("Update the package index"),
+                .help("Update the package index")
+                .conflicts_with("grill"),
         )
 }
 

@@ -14,7 +14,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let dir = if args.is_present("themes") {
         paths::themes()
     } else {
-        paths::pkgs()
+        paths::pkgs(".")
     };
 
     for entry in fs::read_dir(dir)? {
