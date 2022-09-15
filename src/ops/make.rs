@@ -27,7 +27,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
 
     if !silent {
         println!(
-            "{:>12} {} v{}\n",
+            "{:>12} {} v{}",
             console::style("Make").bright().cyan(),
             manifest.package.name,
             manifest.package.version
@@ -35,6 +35,10 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
     }
 
     let multi = crate::log::get_multi_progress();
+
+    // Invisible progress bar to create empty line between logs and progress bars
+    let p = multi.add(ProgressBar::new(0).with_style(ProgressStyle::default_bar().template(" ")?));
+    p.finish();
 
     let index = make_step(
         &multi,
@@ -79,7 +83,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
             let progress = multi.add(
                 ProgressBar::new(1).with_style(
                     ProgressStyle::default_bar()
-                        .template("{prefix:>12} [{bar:11}] {msg:.bright.grey}")?
+                        .template("{prefix:>12} [{bar:40}] {msg:.bright.grey}")?
                         .progress_chars("=> "),
                 ),
             );
@@ -100,26 +104,32 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
             for (pkg, versions) in lock {
                 for version in versions {
                     progress.set_message(format!("{} 0%", pkg));
-                    let path =
+                    let (path, fetched) =
                         crate::ops::install(&pkg, &version, Some(&index), |install_progress| {
                             progress.set_message(format!(
-                                "{} {}% ({}/{}) {}",
+                                "{} {}%",
                                 pkg,
-                                ((install_progress.received_objects()
-                                    + install_progress.indexed_objects())
-                                    as f32
-                                    / (install_progress.total_objects() * 2) as f32
+                                (install_progress.indexed_objects() as f32
+                                    / install_progress.total_objects() as f32
                                     * 100f32)
-                                    .round(),
-                                install_progress.received_objects(),
-                                install_progress.total_objects(),
-                                install_progress.indexed_objects()
+                                    .floor(),
                             ))
                         })?;
 
-                    pkgs.insert((pkg.clone(), either::Left(version)), path);
+                    pkgs.insert((pkg.clone(), either::Left(version.clone())), path);
 
                     if !silent {
+                        if fetched {
+                            multi.suspend(|| {
+                                println!(
+                                    "{:>12} {} v{}",
+                                    console::style("Fetched").bright().cyan(),
+                                    pkg,
+                                    version
+                                );
+                            });
+                        }
+
                         progress.inc(1);
                         progress.set_prefix(format!(
                             "{} / {}",
@@ -138,17 +148,12 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
                     Some(name),
                     |install_progress| {
                         progress.set_message(format!(
-                            "{} {}% ({}/{}) {}",
+                            "{} {}%",
                             name,
-                            ((install_progress.received_objects()
-                                + install_progress.indexed_objects())
-                                as f32
-                                / (install_progress.total_objects() * 2) as f32
+                            (install_progress.indexed_objects() as f32
+                                / install_progress.total_objects() as f32
                                 * 100f32)
                                 .round(),
-                            install_progress.received_objects(),
-                            install_progress.total_objects(),
-                            install_progress.indexed_objects()
                         ))
                     },
                 )?;
@@ -267,7 +272,7 @@ where
         .template("{msg} {spinner}")?
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈✔");
     let progress = multi.insert(
-        step as usize - 1,
+        step as usize, /*- 1*/
         ProgressBar::new_spinner()
             .with_message(format!(
                 "{:>12} {}{}",

@@ -1,12 +1,9 @@
 use std::{
-    collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 use anyhow::Context;
-use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::Url;
 use semver::Version;
 
@@ -18,12 +15,14 @@ use crate::{
     prelude::*,
 };
 
+/// Returns the path to the installed package and a bool indicating
+/// if the package was downloaded.
 pub fn install<S, C>(
     pkg: S,
     version: &Version,
     index: Option<&Index>,
     progress_callback: C,
-) -> Result<PathBuf>
+) -> Result<(PathBuf, bool)>
 where
     S: AsRef<str>,
     C: FnMut(git2::Progress<'_>),
@@ -52,7 +51,7 @@ where
     let ident = format!("{}-{}", pkg, version);
     let path = paths::pkg(".", &ident);
     if path.exists() {
-        return Ok(path);
+        return Ok((path, false));
     }
 
     let (path, _) = install_git(
@@ -61,7 +60,8 @@ where
         Some(&ident),
         progress_callback,
     )?;
-    Ok(path)
+
+    Ok((path, true))
 }
 
 /// Returns the path to the installed package and the revision
@@ -216,79 +216,4 @@ pub fn prepare_pkg(path: &Path, ident: Option<&str>) -> Result<()> {
     proj_file.save()?;
 
     Ok(())
-}
-
-pub fn install_multiple<F>(
-    pkgs: &HashMap<String, Version>,
-    with_progress: bool,
-    index: Option<&Index>,
-    on_install: Option<F>,
-) -> Result<HashMap<String, PathBuf>>
-where
-    F: Fn(&str, &Version),
-{
-    let mut owned_index = None;
-    let index = index.map_or_else(
-        || -> Result<&Index> {
-            owned_index = Some(index::parse(false, false)?);
-            Ok(owned_index.as_ref().unwrap())
-        },
-        |i| Ok(i),
-    )?;
-
-    let mut paths = HashMap::new();
-    if with_progress {
-        let progress = crate::log::get_multi_progress();
-        let install_progress = progress.add(
-            ProgressBar::new_spinner().with_style(
-                ProgressStyle::default_spinner()
-                    .template("{spinner:>11}> {msg}")?
-                    .tick_chars("=\\|/==="),
-            ),
-        );
-        let fetch_progress = progress.add(
-            ProgressBar::new(pkgs.len() as u64)
-                .with_style(
-                    ProgressStyle::default_bar()
-                        .template("{prefix:>12.bright.cyan} [{bar:40}] {pos}/{len}")?
-                        .progress_chars("=> "),
-                )
-                .with_prefix("Fetching"),
-        );
-        install_progress.enable_steady_tick(Duration::from_millis(150));
-        fetch_progress.tick();
-
-        for (pkg, version) in pkgs.iter() {
-            install_progress.set_message(format!("{} v{}", pkg, version));
-
-            let path = install(pkg, version, Some(index), |_| {})?;
-            paths.insert(pkg.clone(), path);
-
-            install_progress.println(format!(
-                "{:>12} {} v{}",
-                console::style("Installed").bright().green(),
-                pkg,
-                version
-            ));
-            fetch_progress.inc(1);
-
-            if let Some(on_install) = &on_install {
-                on_install(pkg, version);
-            }
-        }
-
-        fetch_progress.finish();
-        install_progress.finish_and_clear();
-        progress.clear()?;
-    } else {
-        for (pkg, version) in pkgs.iter() {
-            let path = install(pkg, version, Some(index), |_| {})?;
-            paths.insert(pkg.clone(), path);
-            if let Some(on_install) = &on_install {
-                on_install(pkg, version);
-            }
-        }
-    }
-
-    Ok(paths)
 }

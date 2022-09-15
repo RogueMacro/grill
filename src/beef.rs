@@ -17,6 +17,7 @@ pub struct BeefSpace {
     pub projects: HashMap<String, ProjectEntry>,
     #[serde(default)]
     pub workspace_folders: HashMap<String, HashSet<String>>,
+    #[serde(default)]
     pub workspace: Workspace,
 
     #[serde(flatten)]
