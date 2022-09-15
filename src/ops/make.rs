@@ -64,7 +64,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
         silent,
         |_, _| {
             if !lock::validate(&path)? {
-                lock::generate(&path, false, true)
+                lock::generate(&path, true, true)
             } else {
                 lock::read(path.join(crate::paths::LOCK_FILENAME))
             }
