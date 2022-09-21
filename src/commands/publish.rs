@@ -14,13 +14,7 @@ use crate::{
 };
 
 pub fn cli() -> App {
-    App::new("publish")
-        .about("Publish the current package version")
-        .arg(
-            Arg::new("rev")
-                .short('r')
-                .help("The id of the commit to publish"),
-        )
+    App::new("publish").about("Publish the current package version")
 }
 
 pub fn exec(args: &ArgMatches) -> Result<()> {
@@ -126,7 +120,8 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
                 .filter_map(|remote| {
                     repo.find_remote(remote.unwrap())
                         .unwrap()
-                        .url().map(|url| url.to_owned())
+                        .url()
+                        .map(|url| url.to_owned())
                 })
                 .collect();
 
