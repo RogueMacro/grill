@@ -15,26 +15,24 @@ pub fn read<P>(path: P) -> Result<Lock>
 where
     P: AsRef<Path>,
 {
-    Ok(
-        toml::from_str(&fs::read_to_string(path.as_ref()).with_context(|| {
+    toml::from_str(&fs::read_to_string(path.as_ref()).with_context(|| {
             format!(
                 "Failed to read lock file: {}",
                 path.as_ref().to_string_lossy()
             )
         })?)
-        .context("Failed to deserialize lock file")?,
-    )
+        .context("Failed to deserialize lock file")
 }
 
 pub fn write<P>(path: P, lock: &Lock) -> Result<()>
 where
     P: AsRef<Path>,
 {
-    Ok(fs::write(
+    fs::write(
         path,
         toml::to_string(lock).context("Failed to serialize lock")?,
     )
-    .context("Failed to write lock file")?)
+    .context("Failed to write lock file")
 }
 
 pub fn validate(pkg_path: &Path) -> Result<bool> {

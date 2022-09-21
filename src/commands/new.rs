@@ -52,8 +52,8 @@ namespace {}
         ),
     )?;
 
-    crate::ops::init::init(&path, &name)?;
-    crate::ops::make::make(&path, false)?;
+    crate::ops::init::init(path, &name)?;
+    crate::ops::make::make(path, false)?;
 
     if args.is_present("lib") {
         let mut proj = BeefProj::from_file(&path.join("BeefProj.toml"))?;

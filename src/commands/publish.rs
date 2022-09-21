@@ -110,9 +110,9 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
 
         let mut body = json!({
             "access_token": access_token,
-            "package": package.clone(),
+            "package": package,
             "metadata": json!({
-                "version": version.clone(),
+                "version": version,
                 "revision": rev,
                 "dependencies": deps,
                 "description": manifest.package.description
@@ -123,13 +123,11 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
             let remote_urls: Vec<String> = repo
                 .remotes()?
                 .iter()
-                .map(|remote| {
+                .filter_map(|remote| {
                     repo.find_remote(remote.unwrap())
                         .unwrap()
-                        .url()
-                        .and_then(|url| Some(url.to_owned()))
+                        .url().map(|url| url.to_owned())
                 })
-                .filter_map(|url| url)
                 .collect();
 
             let selected = Select::with_theme(&ColorfulTheme::default())

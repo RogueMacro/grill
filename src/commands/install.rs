@@ -84,7 +84,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     drop(repo);
 
     let mut pkg = url.host().ok_or(anyhow!("No host in url"))?.to_string();
-    pkg.push_str(&url.path().replace("/", "-").replace(".git", ""));
+    pkg.push_str(&url.path().replace('/', "-").replace(".git", ""));
 
     let manifest_path = paths::tmp().join(crate::paths::MANIFEST_FILENAME);
     let mut already_installed_prompt =

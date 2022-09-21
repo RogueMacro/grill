@@ -1,7 +1,7 @@
 use reqwest::blocking::{Client, Response};
 use serde::Serialize;
 
-pub const API_BASE: &'static str = "http://grillpm.vercel.app/api";
+pub const API_BASE: &str = "http://grillpm.vercel.app/api";
 
 pub fn api<S, B>(sub: S, body: &B) -> anyhow::Result<Response>
 where

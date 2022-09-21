@@ -82,14 +82,9 @@ fn print_altered_deps(old_lock: &Lock, new_lock: &Lock) {
     for (dep, new_versions) in new_lock {
         for new_version in new_versions {
             if let Some(old_version) = old_lock.get(dep).and_then(|old_versions| {
-                if let Some(old_version) = old_versions
+                old_versions
                     .iter()
                     .find(|&v| v.major == new_version.major && v != new_version)
-                {
-                    Some(old_version)
-                } else {
-                    None
-                }
             }) {
                 println!(
                     "{:>12} {} v{} -> v{}",

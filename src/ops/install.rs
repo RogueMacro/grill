@@ -35,7 +35,7 @@ where
             owned_index = Some(index::parse(false, false)?);
             Ok(owned_index.as_ref().unwrap())
         },
-        |i| Ok(i),
+        Ok,
     )?;
 
     if !index.contains_key(pkg) {
@@ -109,7 +109,7 @@ where
 
         // drop(remote);
 
-        checkout_rev = rev.map(str::to_owned).unwrap_or(head.to_string());
+        checkout_rev = rev.map(str::to_owned).unwrap_or(head);
 
         let (object, reference) = repo.revparse_ext(&checkout_rev)?;
         repo.checkout_tree(&object, None)?;
@@ -125,7 +125,7 @@ where
         .map(|ident| paths::pkg(".", ident))
         .unwrap_or_else(|| {
             let mut pkg = url.host().unwrap().to_string();
-            pkg.push_str(&url.path().replace("/", "-").replace(".git", ""));
+            pkg.push_str(&url.path().replace('/', "-").replace(".git", ""));
             pkg = format!("{}-{}", pkg, checkout_rev);
             paths::pkg(".", &pkg)
         });

@@ -38,7 +38,7 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
     let mut complete = false;
 
     while !complete {
-        while let Some(mut candidate) = candidates.get(i).and_then(|v| Some(v.clone())) {
+        while let Some(mut candidate) = candidates.get(i).cloned() {
             let mut next_version = None;
             // The available versions are sorted so that the top element
             // is always the latest version.
@@ -173,7 +173,7 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
         lock.reserve(candidates.len());
         for candidate in candidates {
             lock.entry(candidate.name)
-                .or_insert_with(|| HashSet::new())
+                .or_insert_with(HashSet::new)
                 .insert(candidate.version.unwrap());
         }
 
@@ -208,9 +208,8 @@ impl Candidate {
                 entry
                     .versions
                     .keys()
-                    .filter(|v| self.req.matches(v))
-                    .map(|v| v.clone())
-                    .sorted_unstable_by(|v1, v2| v1.cmp(&v2)),
+                    .filter(|v| self.req.matches(v)).cloned()
+                    .sorted_unstable_by(|v1, v2| v1.cmp(v2)),
             );
         }
 

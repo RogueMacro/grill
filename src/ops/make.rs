@@ -41,7 +41,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
     p.finish();
 
     let index = make_step(
-        &multi,
+        multi,
         1,
         4,
         "Updating",
@@ -55,7 +55,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
     )?;
 
     let lock = make_step(
-        &multi,
+        multi,
         2,
         4,
         "Resolving",
@@ -63,8 +63,8 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
         &LOOKING_GLASS,
         silent,
         |_, _| {
-            if !lock::validate(&path)? {
-                lock::generate(&path, true, true)
+            if !lock::validate(path)? {
+                lock::generate(path, true, true)
             } else {
                 lock::read(path.join(crate::paths::LOCK_FILENAME))
             }
@@ -72,7 +72,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
     )?;
 
     let pkgs = make_step(
-        &multi,
+        multi,
         3,
         4,
         "Fetching",
@@ -176,7 +176,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
     )?;
 
     make_step(
-        &multi,
+        multi,
         4,
         4,
         "Building",
@@ -203,7 +203,7 @@ pub fn make(path: &Path, silent: bool) -> Result<()> {
 
             let mut ws_package_folder = HashSet::new();
 
-            ws.workspace.startup_project = proj.project.name.clone();
+            ws.workspace.startup_project = proj.project.name;
             ws.projects.clear();
             ws.projects.insert(
                 String::from("corlib"),
@@ -365,11 +365,11 @@ fn connect(
                 let add = match version {
                     either::Left(version) => {
                         if let manifest::Dependency::Simple(req) = dep {
-                            req.matches(&version)
+                            req.matches(version)
                         } else if let manifest::Dependency::Advanced(dep) = dep {
                             features = Some(&dep.features);
                             default_features = dep.default_features;
-                            dep.req.matches(&version)
+                            dep.req.matches(version)
                         } else {
                             false
                         }
@@ -401,7 +401,7 @@ fn connect(
 
                         for feature in features {
                             let feature_idents =
-                                enable_feature(path, &feature, ws, ws_package_folder, pkgs)?;
+                                enable_feature(path, feature, ws, ws_package_folder, pkgs)?;
                             proj.dependencies
                                 .extend(feature_idents.into_iter().map(|i| (i, String::from("*"))));
                         }
