@@ -20,8 +20,7 @@ pub fn cli() -> App {
         .arg(
             Arg::new("index")
                 .long("index")
-                .help("Update the package index")
-                .conflicts_with("grill"),
+                .help("Update the package index"), // .conflicts_with("grill"),
         )
 }
 
