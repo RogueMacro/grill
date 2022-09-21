@@ -384,11 +384,22 @@ fn connect(
                     ws_package_folder,
                     true,
                 )?
-            } else {
+            } else if std::fs::canonicalize(pkg_path.1)?.starts_with(&dep_path) {
                 // We are a package inside a package
                 connect(
                     name,
                     Some(&either::Left(dep_manifest.package.version)),
+                    (&pkg_path.0.join(&local.path), &dep_path),
+                    pkgs,
+                    ws,
+                    ws_package_folder,
+                    true,
+                )?
+            } else {
+                // Dependency is an external package outside our root package
+                connect(
+                    name,
+                    None,
                     (&pkg_path.0.join(&local.path), &dep_path),
                     pkgs,
                     ws,
