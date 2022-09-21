@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "PascalCase")]
 pub struct Manifest {
     pub package: Package,
+    pub buildscript: Option<Buildscript>,
     #[serde(default)]
     pub dependencies: HashMap<String, Dependency>,
     #[serde(default)]
@@ -78,6 +79,12 @@ pub struct Package {
     pub description: String,
     #[serde(default = "bool_true")]
     pub corlib: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct Buildscript {
+    pub path: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -300,6 +300,7 @@ mod tests {
                 description: String::from(""),
                 corlib: true,
             },
+            buildscript: None,
             dependencies: hashmap! {
                 String::from("b") => crate::manifest::Dependency::Simple(VersionReq::from_str("1.0").unwrap()),
                 String::from("c") => crate::manifest::Dependency::Simple(VersionReq::from_str("1.0").unwrap()),

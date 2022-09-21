@@ -18,6 +18,7 @@ fn main() -> Result<()> {
                 "new" => grill::commands::new::exec(args),
                 "publish" => grill::commands::publish::exec(args),
                 "purge" => grill::commands::purge::exec(args),
+                "rebuild" => grill::commands::rebuild::exec(args),
                 "update" => grill::commands::update::exec(args),
                 _ => bail!("Unkown command: {}", cmd),
             },

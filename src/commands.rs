@@ -6,4 +6,5 @@ pub mod make;
 pub mod new;
 pub mod publish;
 pub mod purge;
+pub mod rebuild;
 pub mod update;

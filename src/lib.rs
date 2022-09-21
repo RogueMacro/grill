@@ -23,6 +23,7 @@ pub fn cli() -> App {
         .subcommand(commands::new::cli())
         .subcommand(commands::publish::cli())
         .subcommand(commands::purge::cli())
+        .subcommand(commands::rebuild::cli())
         .subcommand(commands::update::cli())
 }
 

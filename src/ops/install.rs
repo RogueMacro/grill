@@ -18,11 +18,12 @@ use crate::{
 /// Returns the path to the installed package and a bool indicating
 /// if the package was downloaded.
 pub fn install<S, C>(
+    ws: &Path,
     pkg: S,
     version: &Version,
     index: Option<&Index>,
     progress_callback: C,
-) -> Result<(PathBuf, bool)>
+) -> Result<(PathBuf, PathBuf, bool)>
 where
     S: AsRef<str>,
     C: FnMut(git2::Progress<'_>),
@@ -49,29 +50,31 @@ where
         .with_context(|| format!("{} is not a version of '{}'", version, pkg))?;
 
     let ident = format!("{}-{}", pkg, version);
-    let path = paths::pkg(".", &ident);
+    let path = paths::pkg(ws, Path::new(&ident));
     if path.exists() {
-        return Ok((path, false));
+        return Ok((paths::pkg(".", &ident), path, false));
     }
 
-    let (path, _) = install_git(
+    let (relative_path, full_path, _) = install_git(
+        ws,
         &entry.url,
         Some(&metadata.rev),
         Some(&ident),
         progress_callback,
     )?;
 
-    Ok((path, true))
+    Ok((relative_path, full_path, true))
 }
 
-/// Returns the path to the installed package and the revision
-/// that was checked out.
+/// Returns the path to the installed package, first relative to the workspace,
+/// then relative to the working directory. Last is the revision that was checked out.
 pub fn install_git<C>(
+    ws: &Path,
     url: &Url,
     rev: Option<&str>,
     pkg_ident: Option<&String>,
     mut progress_callback: C,
-) -> Result<(PathBuf, String)>
+) -> Result<(PathBuf, PathBuf, String)>
 where
     C: FnMut(git2::Progress<'_>),
 {
@@ -121,26 +124,28 @@ where
         // Dropping the repository gives us access to the directory
     }
 
-    let path = pkg_ident
-        .map(|ident| paths::pkg(".", ident))
+    let relative_path = pkg_ident
+        .map(|ident| paths::pkg("", ident))
         .unwrap_or_else(|| {
             let mut pkg = url.host().unwrap().to_string();
             pkg.push_str(&url.path().replace('/', "-").replace(".git", ""));
             pkg = format!("{}-{}", pkg, checkout_rev);
-            paths::pkg(".", &pkg)
+            paths::pkg("", &pkg)
         });
 
-    if path.exists() {
-        return Ok((path, checkout_rev));
+    let full_path = ws.join(&relative_path);
+
+    if full_path.exists() {
+        return Ok((relative_path, full_path, checkout_rev));
     }
 
-    fs::rename(paths::tmp(), &path).context("Failed to move tmp folder")?;
+    fs::rename(paths::tmp(), &full_path).context("Failed to move tmp folder")?;
 
     if pkg_ident.is_some() {
-        prepare_pkg(&path, pkg_ident.map(String::as_str))?;
+        prepare_pkg(&full_path, pkg_ident.map(String::as_str))?;
     }
 
-    Ok((path, checkout_rev))
+    Ok((relative_path, full_path, checkout_rev))
 }
 
 pub fn prepare_pkg(path: &Path, ident: Option<&str>) -> Result<()> {
