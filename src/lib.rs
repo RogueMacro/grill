@@ -7,7 +7,7 @@ pub mod manifest;
 pub mod ops;
 pub mod paths;
 pub mod resolver;
-pub mod web;
+pub mod webapi;
 
 use prelude::App;
 
@@ -15,6 +15,7 @@ pub fn cli() -> App {
     App::new("grill")
         .about(clap::crate_description!())
         .version(clap::crate_version!())
+        .subcommand(commands::add::cli())
         .subcommand(commands::init::cli())
         .subcommand(commands::install::cli())
         .subcommand(commands::list::cli())

@@ -50,6 +50,18 @@ impl Manifest {
         })
     }
 
+    pub fn indexed_deps(&self) -> impl Iterator<Item = (&String, &VersionReq)> {
+        self.dependencies.iter().filter_map(|(key, val)| {
+            if let Dependency::Simple(req) = val {
+                Some((key, req))
+            } else if let Dependency::Advanced(dep) = val {
+                Some((key, &dep.req))
+            } else {
+                None
+            }
+        })
+    }
+
     pub fn git_deps(&self) -> impl Iterator<Item = (&String, &GitDependency)> {
         self.dependencies.iter().filter_map(|(key, val)| {
             if let Dependency::Git(git_dep) = val {

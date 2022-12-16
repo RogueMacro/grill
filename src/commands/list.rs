@@ -23,7 +23,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
         println!(
             "{}",
             path.file_name()
-                .ok_or(anyhow!("No filename"))?
+                .ok_or_else(|| anyhow!("No filename"))?
                 .to_string_lossy()
         );
     }

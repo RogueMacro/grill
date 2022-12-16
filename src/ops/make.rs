@@ -312,6 +312,7 @@ fn make_step<F, T>(
 where
     F: FnOnce(&MultiProgress, &ProgressBar) -> Result<T>,
 {
+    log::trace!("Make: {}", msg);
     let spinner_style = ProgressStyle::default_spinner()
         .template("{msg} {spinner}")?
         .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈✔");
@@ -344,6 +345,8 @@ where
     Ok(result)
 }
 
+/// Link packages to their dependencies by setting the right names and paths
+/// in the project files. Recursively connects all dependencies.
 fn connect(
     pkg_name: &str,
     pkg_version: Option<&Either<Version, String>>,
@@ -373,7 +376,10 @@ fn connect(
             let dep_path = pkg_path.1.join(&local.path);
             let dep_manifest = Manifest::from_pkg(&dep_path)?;
 
-            let dep_ident = if std::fs::canonicalize(&dep_path)?.starts_with(pkg_path.1) {
+            let full_dep_path = std::fs::canonicalize(&dep_path)?;
+            let full_pkg_path = std::fs::canonicalize(&pkg_path.1)?;
+
+            let dep_ident = if full_dep_path.starts_with(&full_pkg_path) {
                 // We are a root package
                 connect(
                     &format!("{}/{}", pkg_name, name),
@@ -384,7 +390,7 @@ fn connect(
                     ws_package_folder,
                     true,
                 )?
-            } else if std::fs::canonicalize(pkg_path.1)?.starts_with(&dep_path) {
+            } else if full_pkg_path.starts_with(&full_dep_path) {
                 // We are a package inside a package
                 connect(
                     name,

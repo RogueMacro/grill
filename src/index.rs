@@ -23,6 +23,23 @@ pub struct VersionMetadata {
     pub deps: HashMap<String, VersionReq>,
 }
 
+// pub fn is_outdated() -> Result<bool> {
+//     let response = crate::webapi::github(
+//         "/graphql",
+//         &"
+//         query {
+//             repository(owner:\"roguemacro\", name:\"grill-index\") {
+//                 url
+//             }
+//         }
+//         ",
+//     )?;
+
+//     println!("{}: {}", response.status(), response.text()?);
+
+//     Ok(false)
+// }
+
 pub fn update(with_spinner: bool, clear_after: bool) -> Result<()> {
     log::trace!("Updating index");
 

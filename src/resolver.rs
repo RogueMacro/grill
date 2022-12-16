@@ -16,6 +16,8 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
         if lock.is_some() { " with lock" } else { "" }
     );
 
+    log::trace!("Deps: {}", manifest.dependencies.len());
+
     // Add the root dependencies.
     let mut candidates: Vec<Candidate> = manifest
         .dependencies
@@ -208,7 +210,8 @@ impl Candidate {
                 entry
                     .versions
                     .keys()
-                    .filter(|v| self.req.matches(v)).cloned()
+                    .filter(|v| self.req.matches(v))
+                    .cloned()
                     .sorted_unstable_by(|v1, v2| v1.cmp(v2)),
             );
         }

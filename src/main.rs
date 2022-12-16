@@ -10,6 +10,7 @@ fn main() -> Result<()> {
         let args = grill::cli().get_matches();
         match args.subcommand() {
             Some((cmd, args)) => match cmd {
+                "add" => grill::commands::add::exec(args),
                 "init" => grill::commands::init::exec(args),
                 "install" => grill::commands::install::exec(args),
                 "list" => grill::commands::list::exec(args),

@@ -16,12 +16,12 @@ where
     P: AsRef<Path>,
 {
     toml::from_str(&fs::read_to_string(path.as_ref()).with_context(|| {
-            format!(
-                "Failed to read lock file: {}",
-                path.as_ref().to_string_lossy()
-            )
-        })?)
-        .context("Failed to deserialize lock file")
+        format!(
+            "Failed to read lock file: {}",
+            path.as_ref().to_string_lossy()
+        )
+    })?)
+    .context("Failed to deserialize lock file")
 }
 
 pub fn write<P>(path: P, lock: &Lock) -> Result<()>
@@ -50,7 +50,7 @@ pub fn validate(pkg_path: &Path) -> Result<bool> {
 fn validate_lock(manifest: &Manifest, lock: &Lock) -> bool {
     log::trace!("Validating lock");
 
-    for (dep, req) in manifest.simple_deps() {
+    for (dep, req) in manifest.indexed_deps() {
         if !lock.get(dep).map_or(false, |locked_versions| {
             locked_versions.iter().any(|v| req.matches(v))
         }) {

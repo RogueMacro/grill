@@ -14,7 +14,14 @@ use crate::{
 };
 
 pub fn cli() -> App {
-    App::new("publish").about("Publish the current package version")
+    App::new("publish")
+        .about("Publish the current package version")
+        .arg(
+            Arg::new("commit")
+                .long("commit")
+                .value_name("COMMIT_HASH")
+                .help("The commit hash to publish"),
+        )
 }
 
 pub fn exec(args: &ArgMatches) -> Result<()> {
@@ -30,12 +37,13 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let version = manifest.package.version.to_string();
 
     let repo = Repository::open(".").context("Failed to open repository")?;
-    let commit = if let Some(rev) = args.value_of("rev") {
-        let commit = repo
-            .find_commit(Oid::from_str(rev)?)
-            .context("Commit doesn't exist")?;
+    let commit = if let Some(rev) = args.value_of("commit") {
+        if rev.len() != "568e61d10fbcb81c3403e598b5794dd418694a58".len() {
+            bail!("Commit cannot be found without long hash");
+        }
 
-        commit
+        repo.find_commit(Oid::from_str(rev)?)
+            .context("Commit doesn't exist")?
     } else {
         let head = repo.head()?;
         let rev = head.target().context("Could not get HEAD target")?;
@@ -137,7 +145,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
             );
         }
 
-        let res = crate::web::api("publish", &body)?;
+        let res = crate::webapi::grill("/publish", &body)?;
 
         if let Err(err) = res.error_for_status_ref() {
             let body = res
