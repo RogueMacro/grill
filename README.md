@@ -4,6 +4,8 @@ A Package Manager for the [Beef Programming Language](https://github.com/beefyte
 
 Browse packages and manage your own at https://grillpm.vercel.app/
 
+Documentation: https://roguemacro.gitbook.io/grill
+
 # Getting started
 
 Download the latest release of the CLI from [GitHub Releases](https://github.com/RogueMacro/grill/releases/latest).
