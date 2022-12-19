@@ -358,9 +358,12 @@ fn connect(
 ) -> Result<String> {
     let manifest = Manifest::from_pkg(&pkg_path.1)?;
     let mut proj = beef::BeefProj::from_file(&pkg_path.1.join("BeefProj.toml"))?;
+    let is_binary = proj.project.target_type == "BeefConsoleApplication";
     proj.dependencies.clear();
-    proj.dependencies
-        .insert(String::from("corlib"), String::from("*"));
+    if manifest.package.corlib {
+        proj.dependencies
+            .insert(String::from("corlib"), String::from("*"));
+    }
 
     let pkg_ident = if let Some(pkg_version) = pkg_version {
         match pkg_version {
@@ -399,7 +402,7 @@ fn connect(
                     pkgs,
                     ws,
                     ws_package_folder,
-                    true,
+                    !is_binary, // If we are a binary application then local dependencies should not be considered packages
                 )?
             } else {
                 // Dependency is an external package outside our root package
@@ -414,7 +417,14 @@ fn connect(
                 )?
             };
 
-            proj.dependencies.insert(dep_ident, String::from("*"));
+            proj.dependencies.insert(
+                if is_binary {
+                    name.to_owned()
+                } else {
+                    dep_ident
+                },
+                String::from("*"),
+            );
 
             continue;
         }
