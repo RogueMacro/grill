@@ -130,6 +130,10 @@ pub struct GitDependency {
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct LocalDependency {
     pub path: PathBuf,
+    #[serde(default)]
+    pub features: HashSet<String>,
+    #[serde(default = "bool_true")]
+    pub default_features: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]

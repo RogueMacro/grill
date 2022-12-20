@@ -260,6 +260,16 @@ where
             ws.locked.clear();
             ws.locked.insert(String::from("corlib"));
 
+            // // Reset all preprocessor macros in project files
+            // // so they disappear when removed
+            // for (f, path) in pkgs.values() {
+            //     let mut proj = beef::BeefProj::from_file(&path.join("BeefProj.toml"))?;
+            //     proj.project.processor_macros.clear();
+            //     proj.save()?;
+            // }
+
+            let mut resets = HashSet::new();
+
             connect(
                 &manifest.package.name,
                 Some(&either::Left(manifest.package.version)),
@@ -268,6 +278,7 @@ where
                 &mut ws,
                 &mut ws_package_folder,
                 false,
+                &mut resets,
             )?;
 
             ws.projects.get_mut(&manifest.package.name).unwrap().path = ".".into();
@@ -281,6 +292,7 @@ where
                     &mut ws,
                     &mut ws_package_folder,
                     true,
+                    &mut resets,
                 )?;
             }
 
@@ -355,6 +367,7 @@ fn connect(
     ws: &mut beef::BeefSpace,
     ws_package_folder: &mut HashSet<String>,
     is_pkg: bool,
+    resets: &mut HashSet<String>,
 ) -> Result<String> {
     let manifest = Manifest::from_pkg(&pkg_path.1)?;
     let mut proj = beef::BeefProj::from_file(&pkg_path.1.join("BeefProj.toml"))?;
@@ -392,6 +405,7 @@ fn connect(
                     ws,
                     ws_package_folder,
                     is_pkg,
+                    resets,
                 )?
             } else if full_pkg_path.starts_with(&full_dep_path) {
                 // We are a package inside a package
@@ -403,6 +417,7 @@ fn connect(
                     ws,
                     ws_package_folder,
                     is_pkg && !is_binary, // If we are a binary application then local dependencies should not be considered packages
+                    resets,
                 )?
             } else {
                 // Dependency is an external package outside our root package
@@ -414,6 +429,7 @@ fn connect(
                     ws,
                     ws_package_folder,
                     is_pkg,
+                    resets,
                 )?
             };
 
@@ -421,10 +437,47 @@ fn connect(
                 if !is_pkg || is_binary {
                     name.to_owned()
                 } else {
-                    dep_ident
+                    dep_ident.clone()
                 },
                 String::from("*"),
             );
+
+            let features: Box<dyn Iterator<Item = &String>> = if local.default_features {
+                Box::new(
+                    local
+                        .features
+                        .iter()
+                        .chain(dep_manifest.features.default.iter()),
+                )
+            } else {
+                Box::new(local.features.iter())
+            };
+
+            let mut dep_proj = beef::BeefProj::from_file(&dep_path.join("BeefProj.toml"))?;
+            if !resets.contains(&dep_ident) {
+                dep_proj.project.processor_macros.clear();
+                resets.insert(dep_ident);
+            }
+
+            for feature in features {
+                let feature_idents = enable_feature(
+                    (&local.path, &dep_path),
+                    feature,
+                    ws,
+                    ws_package_folder,
+                    pkgs,
+                    resets,
+                )?;
+
+                proj.dependencies
+                    .extend(feature_idents.into_iter().map(|i| (i, String::from("*"))));
+
+                dep_proj
+                    .project
+                    .processor_macros
+                    .insert(format!("FEATURE_{}", feature.to_uppercase()));
+            }
+            dep_proj.save()?;
 
             continue;
         }
@@ -432,7 +485,7 @@ fn connect(
         for ((pkg, version), (relative_path, full_path)) in pkgs.iter() {
             if pkg == name {
                 let mut features = None;
-                let mut default_features = false;
+                let mut default_features = true;
                 let add = match version {
                     either::Left(version) => {
                         if let manifest::Dependency::Simple(req) = dep {
@@ -459,7 +512,7 @@ fn connect(
                         either::Left(v) => format!("{}-{}", pkg, v),
                         either::Right(rev) => format!("{}-{}", pkg, rev),
                     };
-                    proj.dependencies.insert(ident, String::from("*"));
+                    proj.dependencies.insert(ident.clone(), String::from("*"));
 
                     if let Some(features) = features {
                         let dep_manifest = Manifest::from_pkg(full_path)?;
@@ -470,6 +523,13 @@ fn connect(
                             Box::new(features.iter())
                         };
 
+                        let mut dep_proj =
+                            beef::BeefProj::from_file(&full_path.join("BeefProj.toml"))?;
+                        if !resets.contains(&ident) {
+                            dep_proj.project.processor_macros.clear();
+                            resets.insert(ident);
+                        }
+
                         for feature in features {
                             let feature_idents = enable_feature(
                                 (relative_path, full_path),
@@ -477,11 +537,19 @@ fn connect(
                                 ws,
                                 ws_package_folder,
                                 pkgs,
+                                resets,
                             )?;
 
                             proj.dependencies
                                 .extend(feature_idents.into_iter().map(|i| (i, String::from("*"))));
+
+                            dep_proj
+                                .project
+                                .processor_macros
+                                .insert(format!("FEATURE_{}", feature.to_uppercase()));
                         }
+
+                        dep_proj.save()?;
                     }
 
                     continue 'dep_loop;
@@ -523,6 +591,7 @@ fn enable_feature(
     ws: &mut beef::BeefSpace,
     ws_package_folder: &mut HashSet<String>,
     pkgs: &HashMap<(String, Either<Version, String>), (PathBuf, PathBuf)>,
+    resets: &mut HashSet<String>,
 ) -> Result<Vec<String>> {
     let manifest = Manifest::from_pkg(path.1)?;
 
@@ -534,7 +603,7 @@ fn enable_feature(
     match manifest.features.optional.get(feature).unwrap() {
         manifest::Feature::List(sub_features) => {
             for sub_feature in sub_features {
-                enable_feature(path, sub_feature, ws, ws_package_folder, pkgs)?;
+                enable_feature(path, sub_feature, ws, ws_package_folder, pkgs, resets)?;
             }
         }
         manifest::Feature::Project(feature_path) => {
@@ -550,6 +619,7 @@ fn enable_feature(
                 ws,
                 ws_package_folder,
                 true,
+                resets,
             )?;
             idents.push(ident);
         }
