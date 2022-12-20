@@ -391,7 +391,7 @@ fn connect(
                     pkgs,
                     ws,
                     ws_package_folder,
-                    true,
+                    is_pkg,
                 )?
             } else if full_pkg_path.starts_with(&full_dep_path) {
                 // We are a package inside a package
@@ -402,7 +402,7 @@ fn connect(
                     pkgs,
                     ws,
                     ws_package_folder,
-                    !is_binary, // If we are a binary application then local dependencies should not be considered packages
+                    is_pkg && !is_binary, // If we are a binary application then local dependencies should not be considered packages
                 )?
             } else {
                 // Dependency is an external package outside our root package
@@ -413,12 +413,12 @@ fn connect(
                     pkgs,
                     ws,
                     ws_package_folder,
-                    true,
+                    is_pkg,
                 )?
             };
 
             proj.dependencies.insert(
-                if is_binary {
+                if !is_pkg || is_binary {
                     name.to_owned()
                 } else {
                     dep_ident
