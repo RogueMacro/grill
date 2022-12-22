@@ -83,7 +83,10 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     // Dropping the repo grants us access to the directory
     drop(repo);
 
-    let mut pkg = url.host().ok_or(anyhow!("No host in url"))?.to_string();
+    let mut pkg = url
+        .host()
+        .ok_or_else(|| anyhow!("No host in url"))?
+        .to_string();
     pkg.push_str(&url.path().replace('/', "-").replace(".git", ""));
 
     let manifest_path = paths::tmp().join(crate::paths::MANIFEST_FILENAME);

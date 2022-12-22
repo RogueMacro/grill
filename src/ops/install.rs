@@ -164,7 +164,7 @@ pub fn prepare_pkg(path: &Path, ident: Option<&str>) -> Result<()> {
         .dependencies
         .insert(String::from("corlib"), String::from("*"));
 
-    let manifest = Manifest::from_pkg(&path)?;
+    let manifest = Manifest::from_pkg(path)?;
 
     for (feature_name, feature_project) in
         manifest

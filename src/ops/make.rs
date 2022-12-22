@@ -16,6 +16,8 @@ use crate::{
     prelude::*,
 };
 
+type Packages = HashMap<(String, Either<Version, String>), (PathBuf, PathBuf)>;
+
 const COMPASS: Emoji = Emoji("🧭 ", "");
 const LOOKING_GLASS: Emoji = Emoji("🔍 ", "");
 const TRUCK: Emoji = Emoji("🚚 ", "");
@@ -95,11 +97,8 @@ where
                 ),
             );
             if !quiet {
-                progress.set_length(
-                    lock.iter()
-                        .map(|(_, versions)| versions.len())
-                        .sum::<usize>() as u64,
-                );
+                progress
+                    .set_length(lock.values().map(|versions| versions.len()).sum::<usize>() as u64);
                 progress.set_prefix(format!(
                     "{} / {}",
                     0,
@@ -260,41 +259,22 @@ where
             ws.locked.clear();
             ws.locked.insert(String::from("corlib"));
 
-            // // Reset all preprocessor macros in project files
-            // // so they disappear when removed
-            // for (f, path) in pkgs.values() {
-            //     let mut proj = beef::BeefProj::from_file(&path.join("BeefProj.toml"))?;
-            //     proj.project.processor_macros.clear();
-            //     proj.save()?;
-            // }
-
-            let mut resets = HashSet::new();
+            let mut connects = HashMap::new();
 
             connect(
                 &manifest.package.name,
                 Some(&either::Left(manifest.package.version)),
                 (Path::new("."), ws_path),
-                &pkgs,
-                &mut ws,
-                &mut ws_package_folder,
                 false,
-                &mut resets,
+                &mut SharedConnectData {
+                    pkgs: &pkgs,
+                    ws: &mut ws,
+                    ws_package_folder: &mut ws_package_folder,
+                    connects: &mut connects,
+                },
             )?;
 
             ws.projects.get_mut(&manifest.package.name).unwrap().path = ".".into();
-
-            for ((pkg_name, pkg_version), (relative_path, full_path)) in pkgs.iter() {
-                connect(
-                    pkg_name,
-                    Some(pkg_version),
-                    (relative_path, full_path),
-                    &pkgs,
-                    &mut ws,
-                    &mut ws_package_folder,
-                    true,
-                    &mut resets,
-                )?;
-            }
 
             ws.workspace_folders
                 .insert(String::from("Packages"), ws_package_folder);
@@ -311,6 +291,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_step<F, T>(
     multi: &MultiProgress,
     step: i32,
@@ -363,13 +344,18 @@ fn connect(
     pkg_name: &str,
     pkg_version: Option<&Either<Version, String>>,
     pkg_path: (&Path, &Path),
-    pkgs: &HashMap<(String, Either<Version, String>), (PathBuf, PathBuf)>,
-    ws: &mut beef::BeefSpace,
-    ws_package_folder: &mut HashSet<String>,
     is_pkg: bool,
-    resets: &mut HashSet<String>,
+    shared: &mut SharedConnectData,
 ) -> Result<String> {
-    let manifest = Manifest::from_pkg(&pkg_path.1)?;
+    if shared.connects.len() > 10 {
+        panic!();
+    }
+    let full_pkg_path = pkg_path.1.canonicalize()?;
+    if let Some(ident) = shared.connects.get(&full_pkg_path) {
+        return Ok(ident.clone());
+    }
+
+    let manifest = Manifest::from_pkg(pkg_path.1)?;
     let mut proj = beef::BeefProj::from_file(&pkg_path.1.join("BeefProj.toml"))?;
     let is_binary = proj.project.target_type == "BeefConsoleApplication";
     proj.dependencies.clear();
@@ -387,37 +373,60 @@ fn connect(
         pkg_name.to_owned()
     };
 
+    shared.connects.insert(
+        full_pkg_path.clone(),
+        if is_pkg {
+            pkg_ident.clone()
+        } else {
+            pkg_name.to_owned()
+        },
+    );
+
+    proj.project.processor_macros.clear();
+
     'dep_loop: for (name, dep) in manifest.dependencies.iter() {
+        log::debug!("Dependency: {}", name);
         if let manifest::Dependency::Local(local) = dep {
             let dep_path = pkg_path.1.join(&local.path);
             let dep_manifest = Manifest::from_pkg(&dep_path)?;
 
-            let full_dep_path = std::fs::canonicalize(&dep_path)?;
-            let full_pkg_path = std::fs::canonicalize(&pkg_path.1)?;
+            let full_dep_path = dep_path.canonicalize()?;
 
-            let dep_ident = if full_dep_path.starts_with(&full_pkg_path) {
-                // We are a root package
+            if dep_manifest.features.optional.values().any(|f| {
+                if let manifest::Feature::Project(p) = f {
+                    dep_path.join(p).canonicalize().unwrap() == full_pkg_path
+                } else {
+                    false
+                }
+            }) {
+                proj.dependencies.insert(
+                    shared
+                        .connects
+                        .get(&dep_path.canonicalize()?)
+                        .unwrap()
+                        .clone(),
+                    String::from("*"),
+                );
+                continue 'dep_loop;
+            }
+
+            let dep_ident = if full_pkg_path.starts_with(&full_dep_path) {
+                // We are a subpackage to this dependency
                 connect(
                     &format!("{}/{}", pkg_name, name),
                     None,
                     (&pkg_path.0.join(&local.path), &dep_path),
-                    pkgs,
-                    ws,
-                    ws_package_folder,
                     is_pkg,
-                    resets,
+                    shared,
                 )?
-            } else if full_pkg_path.starts_with(&full_dep_path) {
-                // We are a package inside a package
+            } else if full_dep_path.starts_with(&full_pkg_path) {
+                // Dependency is a subpackage to us
                 connect(
                     name,
-                    Some(&either::Left(dep_manifest.package.version)),
+                    None, //Some(&either::Left(dep_manifest.package.version)),
                     (&pkg_path.0.join(&local.path), &dep_path),
-                    pkgs,
-                    ws,
-                    ws_package_folder,
                     is_pkg && !is_binary, // If we are a binary application then local dependencies should not be considered packages
-                    resets,
+                    shared,
                 )?
             } else {
                 // Dependency is an external package outside our root package
@@ -425,11 +434,8 @@ fn connect(
                     name,
                     None,
                     (&pkg_path.0.join(&local.path), &dep_path),
-                    pkgs,
-                    ws,
-                    ws_package_folder,
                     is_pkg,
-                    resets,
+                    shared,
                 )?
             };
 
@@ -454,20 +460,24 @@ fn connect(
             };
 
             let mut dep_proj = beef::BeefProj::from_file(&dep_path.join("BeefProj.toml"))?;
-            if !resets.contains(&dep_ident) {
+            if !shared.connects.contains_key(&dep_path) {
                 dep_proj.project.processor_macros.clear();
-                resets.insert(dep_ident);
+                shared
+                    .connects
+                    .insert(dep_path.canonicalize()?, dep_ident.clone());
             }
 
             for feature in features {
-                let feature_idents = enable_feature(
-                    (&local.path, &dep_path),
-                    feature,
-                    ws,
-                    ws_package_folder,
-                    pkgs,
-                    resets,
-                )?;
+                if let Some(manifest::Feature::Project(p)) =
+                    dep_manifest.features.optional.get(feature)
+                {
+                    if full_dep_path.join(p).canonicalize()? == full_pkg_path {
+                        continue;
+                    }
+                }
+
+                log::debug!("Enabling feature {} of {}", feature, name);
+                let feature_idents = enable_feature((&local.path, &dep_path), feature, shared)?;
 
                 proj.dependencies
                     .extend(feature_idents.into_iter().map(|i| (i, String::from("*"))));
@@ -482,7 +492,7 @@ fn connect(
             continue;
         }
 
-        for ((pkg, version), (relative_path, full_path)) in pkgs.iter() {
+        for ((pkg, version), (relative_path, full_path)) in shared.pkgs.iter() {
             if pkg == name {
                 let mut features = None;
                 let mut default_features = true;
@@ -508,37 +518,35 @@ fn connect(
                 };
 
                 if add {
-                    let ident = match version {
-                        either::Left(v) => format!("{}-{}", pkg, v),
-                        either::Right(rev) => format!("{}-{}", pkg, rev),
-                    };
+                    let mut dep_proj = beef::BeefProj::from_file(&full_path.join("BeefProj.toml"))?;
+
+                    let ident =
+                        connect(pkg, Some(version), (relative_path, full_path), true, shared)?;
+
                     proj.dependencies.insert(ident.clone(), String::from("*"));
 
-                    if let Some(features) = features {
-                        let dep_manifest = Manifest::from_pkg(full_path)?;
+                    let dep_manifest = Manifest::from_pkg(full_path)?;
+                    if dep_manifest.features.optional.values().any(|f| {
+                        if let manifest::Feature::Project(p) = f {
+                            full_path.join(p).canonicalize().unwrap() == full_pkg_path
+                        } else {
+                            false
+                        }
+                    }) {
+                        continue 'dep_loop;
+                    }
 
+                    if let Some(features) = features {
                         let features: Box<dyn Iterator<Item = &String>> = if default_features {
                             Box::new(features.iter().chain(dep_manifest.features.default.iter()))
                         } else {
                             Box::new(features.iter())
                         };
 
-                        let mut dep_proj =
-                            beef::BeefProj::from_file(&full_path.join("BeefProj.toml"))?;
-                        if !resets.contains(&ident) {
-                            dep_proj.project.processor_macros.clear();
-                            resets.insert(ident);
-                        }
-
                         for feature in features {
-                            let feature_idents = enable_feature(
-                                (relative_path, full_path),
-                                feature,
-                                ws,
-                                ws_package_folder,
-                                pkgs,
-                                resets,
-                            )?;
+                            log::debug!("Enabling feature {} of {}", feature, name);
+                            let feature_idents =
+                                enable_feature((relative_path, full_path), feature, shared)?;
 
                             proj.dependencies
                                 .extend(feature_idents.into_iter().map(|i| (i, String::from("*"))));
@@ -561,17 +569,17 @@ fn connect(
     }
 
     if is_pkg {
-        ws.projects.insert(
+        shared.ws.projects.insert(
             pkg_ident.clone(),
             beef::ProjectEntry {
                 path: pkg_path.0.to_path_buf(),
                 ..Default::default()
             },
         );
-        ws.locked.insert(pkg_ident.clone());
-        ws_package_folder.insert(pkg_ident.clone());
+        shared.ws.locked.insert(pkg_ident.clone());
+        shared.ws_package_folder.insert(pkg_ident.clone());
     } else {
-        ws.projects.insert(
+        shared.ws.projects.insert(
             pkg_name.to_owned(),
             beef::ProjectEntry {
                 path: pkg_path.0.to_path_buf(),
@@ -588,10 +596,7 @@ fn connect(
 fn enable_feature(
     path: (&Path, &Path),
     feature: &str,
-    ws: &mut beef::BeefSpace,
-    ws_package_folder: &mut HashSet<String>,
-    pkgs: &HashMap<(String, Either<Version, String>), (PathBuf, PathBuf)>,
-    resets: &mut HashSet<String>,
+    shared: &mut SharedConnectData,
 ) -> Result<Vec<String>> {
     let manifest = Manifest::from_pkg(path.1)?;
 
@@ -603,7 +608,7 @@ fn enable_feature(
     match manifest.features.optional.get(feature).unwrap() {
         manifest::Feature::List(sub_features) => {
             for sub_feature in sub_features {
-                enable_feature(path, sub_feature, ws, ws_package_folder, pkgs, resets)?;
+                enable_feature(path, sub_feature, shared)?;
             }
         }
         manifest::Feature::Project(feature_path) => {
@@ -615,15 +620,19 @@ fn enable_feature(
                 &ident,
                 None,
                 (&path.0.join(feature_path), &path.1.join(feature_path)),
-                pkgs,
-                ws,
-                ws_package_folder,
                 true,
-                resets,
+                shared,
             )?;
             idents.push(ident);
         }
     }
 
     Ok(idents)
+}
+
+struct SharedConnectData<'a> {
+    pub pkgs: &'a Packages,
+    pub ws: &'a mut beef::BeefSpace,
+    pub ws_package_folder: &'a mut HashSet<String>,
+    pub connects: &'a mut HashMap<PathBuf, String>,
 }

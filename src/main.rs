@@ -2,12 +2,17 @@ use anyhow::{bail, Result};
 use grill::paths;
 
 fn main() -> Result<()> {
-    grill::log::init()?;
-
     rm_rf::ensure_removed(paths::tmp())?;
 
     let result = {
         let args = grill::cli().get_matches();
+
+        if args.contains_id("debug") {
+            grill::log::init(log::LevelFilter::Debug)?;
+        } else {
+            grill::log::init(log::LevelFilter::Info)?;
+        }
+
         match args.subcommand() {
             Some((cmd, args)) => match cmd {
                 "add" => grill::commands::add::exec(args),
@@ -39,7 +44,7 @@ fn main() -> Result<()> {
             log::error!("{}", err);
         }
 
-        log::trace!("Backtrace: {}", err.backtrace());
+        log::debug!("Backtrace: {}", err.backtrace());
 
         println!();
     }

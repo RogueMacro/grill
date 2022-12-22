@@ -11,12 +11,12 @@ use crate::{
 };
 
 pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Result<Lock> {
-    log::trace!(
+    log::debug!(
         "Resolving dependency tree{}",
         if lock.is_some() { " with lock" } else { "" }
     );
 
-    log::trace!("Deps: {}", manifest.dependencies.len());
+    log::debug!("Deps: {}", manifest.dependencies.len());
 
     // Add the root dependencies.
     let mut candidates: Vec<Candidate> = manifest
@@ -61,7 +61,7 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
                             && i_version != &version;
 
                         if is_conflicting {
-                            log::trace!("Conflicting with: {} v{}", i_candidate.name, i_version);
+                            log::debug!("Conflicting with: {} v{}", i_candidate.name, i_version);
                         }
 
                         is_conflicting
@@ -158,7 +158,7 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
         } else {
             // We need to resolve the missing dependencies.
             // The resolution loop will continue automatically.
-            log::trace!("{:?}", missing_dependencies);
+            log::debug!("{:?}", missing_dependencies);
             candidates.extend(
                 missing_dependencies
                     .iter()
@@ -168,19 +168,20 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
     }
 
     if failed {
-        log::trace!("Resolution failed");
-        Err(anyhow!("Failed to resolve dependencies"))
-    } else {
-        let mut lock = Lock::new();
-        lock.reserve(candidates.len());
-        for candidate in candidates {
-            lock.entry(candidate.name)
-                .or_insert_with(HashSet::new)
-                .insert(candidate.version.unwrap());
-        }
-
-        Ok(lock)
+        log::debug!("Resolution failed");
+        return Err(anyhow!("Failed to resolve dependencies"));
     }
+
+    let mut lock = Lock::new();
+    lock.reserve(candidates.len());
+    for candidate in candidates {
+        lock.entry(candidate.name)
+            .or_insert_with(HashSet::new)
+            .insert(candidate.version.unwrap());
+    }
+
+    log::debug!("Resolved lock: {:#?}", lock);
+    Ok(lock)
 }
 
 #[derive(Clone)]

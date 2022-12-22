@@ -3,6 +3,7 @@ use std::fs::File;
 use anyhow::Result;
 use indicatif::MultiProgress;
 use lazy_static::lazy_static;
+use log::LevelFilter;
 
 use crate::paths;
 
@@ -10,8 +11,8 @@ lazy_static! {
     static ref PROGRESS_BAR: MultiProgress = MultiProgress::new();
 }
 
-pub fn init() -> Result<()> {
-    let console_logger = Box::new(ConsoleLogger::new());
+pub fn init(max_level: LevelFilter) -> Result<()> {
+    let console_logger = Box::new(ConsoleLogger::new(max_level));
     let file_logger = simplelog::WriteLogger::new(
         log::LevelFilter::max(),
         Default::default(),
@@ -30,12 +31,12 @@ struct ConsoleLogger {
 }
 
 impl ConsoleLogger {
-    pub fn new() -> Self {
+    pub fn new(max_level: LevelFilter) -> Self {
         Self {
             inner: env_logger::builder()
                 .format_timestamp(None)
                 .format_target(false)
-                .filter_level(log::LevelFilter::Info)
+                .filter_level(max_level)
                 .build(),
         }
     }

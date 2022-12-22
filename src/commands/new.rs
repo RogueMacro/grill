@@ -5,7 +5,7 @@ use crate::{beef::BeefProj, prelude::*};
 enum ProjectType {
     Binary,
     Library,
-    GUI,
+    Gui,
 }
 
 pub fn cli() -> App {
@@ -36,7 +36,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
     let project_type = if args.is_present("lib") {
         ProjectType::Library
     } else if args.is_present("gui") {
-        ProjectType::GUI
+        ProjectType::Gui
     } else {
         ProjectType::Binary
     };
@@ -85,7 +85,7 @@ namespace {}
             proj.project.target_type = String::from("BeefLib");
             proj.save()?;
         }
-        ProjectType::GUI => {
+        ProjectType::Gui => {
             let mut proj = BeefProj::from_file(&path.join("BeefProj.toml"))?;
             proj.project.target_type = String::from("BeefGUIApplication");
             proj.save()?;

@@ -101,7 +101,7 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
 
         for (_, feature) in manifest.features.optional.iter() {
             if let manifest::Feature::Project(path) = feature {
-                let feature_manifest = Manifest::from_pkg(&path)?;
+                let feature_manifest = Manifest::from_pkg(path)?;
                 deps.extend(
                     feature_manifest
                         .simple_deps()

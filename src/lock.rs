@@ -54,7 +54,7 @@ fn validate_lock(manifest: &Manifest, lock: &Lock) -> bool {
         if !lock.get(dep).map_or(false, |locked_versions| {
             locked_versions.iter().any(|v| req.matches(v))
         }) {
-            log::trace!("Invalid lock: No match for {} {}", dep, req);
+            log::debug!("Invalid lock: No match for {} {}", dep, req);
             return false;
         }
     }
@@ -63,7 +63,7 @@ fn validate_lock(manifest: &Manifest, lock: &Lock) -> bool {
         for v1 in versions.iter() {
             for v2 in versions.iter() {
                 if v1.major == v2.major && v1 != v2 {
-                    log::trace!(
+                    log::debug!(
                         "Invalid lock: {} v{} is incompatible with {} v{}",
                         dep,
                         v1,

@@ -9,12 +9,13 @@ pub mod paths;
 pub mod resolver;
 pub mod webapi;
 
-use prelude::App;
+use prelude::{App, Arg};
 
 pub fn cli() -> App {
     App::new("grill")
         .about(clap::crate_description!())
         .version(clap::crate_version!())
+        .arg(Arg::new("debug").long("debug").global(true))
         .subcommand(commands::add::cli())
         .subcommand(commands::init::cli())
         .subcommand(commands::install::cli())

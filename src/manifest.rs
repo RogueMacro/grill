@@ -148,7 +148,7 @@ pub struct Features {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum Feature {
-    Project(String),
+    Project(PathBuf),
     List(Vec<String>),
 }
 

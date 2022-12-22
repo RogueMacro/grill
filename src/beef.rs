@@ -92,7 +92,7 @@ impl BeefProj {
     where
         P: AsRef<Path>,
     {
-        let mut proj: Self = toml::from_str(&fs::read_to_string(&path)?).with_context(|| {
+        let mut proj: Self = toml::from_str(&fs::read_to_string(path)?).with_context(|| {
             format!("Failed to read project file '{}'", path.as_ref().display())
         })?;
         proj.path = path.as_ref().to_path_buf();

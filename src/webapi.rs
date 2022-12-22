@@ -1,7 +1,7 @@
 use anyhow::Result;
 use reqwest::{
     blocking::{Client, Response},
-    header::{AUTHORIZATION, USER_AGENT},
+    header::USER_AGENT,
 };
 use serde::Serialize;
 
@@ -25,7 +25,6 @@ where
     S: AsRef<str>,
     B: Serialize,
 {
-    println!("{}", format!("{}{}", GITHUB_API, sub.as_ref()));
     Client::new()
         .post(format!("{}{}", GITHUB_API, sub.as_ref()))
         .json(body)
