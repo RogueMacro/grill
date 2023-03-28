@@ -1,0 +1,13 @@
+FileVersion = 1
+
+[Dependencies]
+"Serialize-0.1.1" = "*"
+"BuildTools-0.2.2" = "*"
+corlib = "*"
+"Toml-0.1.1" = "*"
+
+[Project]
+Name = "Grill"
+TargetType = ""
+StartupObject = "Grill.Program"
+ProcessorMacros = []

@@ -1,0 +1,7 @@
+build/
+recovery/
+pkg/
+tmp/
+
+BeefSpace.toml
+BeefSpace_User.toml
