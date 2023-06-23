@@ -16,6 +16,6 @@ class Manifest
 class Package
 {
 	public String Name ~ delete _;
-	public String Version ~ delete _;
+	public Version Version;
 	public String Description ~ delete _;
 }

@@ -2,6 +2,7 @@ build/
 recovery/
 pkg/
 tmp/
+bin/
 
 BeefSpace.toml
 BeefSpace_User.toml

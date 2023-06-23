@@ -2,6 +2,39 @@ using System;
 using Serialize;
 using Serialize.Implementation;
 
+namespace System
+{
+	extension Version : ISerializableKey
+	{
+		public void Serialize<S>(S serializer) where S : ISerializer
+		{
+			let str = ToString(..scope .());
+			serializer.SerializeString(str);
+		}
+
+		public static Result<Self> Deserialize<D>(D deserializer) where D : IDeserializer
+		{
+			let str = Try!(deserializer.DeserializeString());
+			defer delete str;
+			return Version.Parse(str);
+		}
+
+		public void ToKey(String buffer)
+		{
+			ToString(buffer);
+		}
+
+		public int GetHashCode()
+		{
+			int hash = 17;
+			hash = hash * 23 + Major.GetHashCode();
+			hash = hash * 23 + Minor.GetHashCode();
+			hash = hash * 23 + Build.GetHashCode();
+			return hash;
+		}
+	}
+}
+
 namespace Grill;
 
 struct VersionReq : ISerializable

@@ -8,7 +8,6 @@ using static BuildTools.Git.Git;
 
 namespace Grill;
 
-[Serializable]
 class IndexManager
 {
 	public static Result<Index> Index => _index ?? Load();
@@ -54,7 +53,7 @@ class IndexManager
 	{
 		public String url ~ delete _;
 		public String description ~ delete _;
-		public Dictionary<String, VersionMetadata> versions ~ DeleteDictionaryAndKeysAndValues!(_);
+		public Dictionary<Version, VersionMetadata> versions ~ DeleteDictionaryAndValues!(_);
 	}
 
 	[Serializable]
