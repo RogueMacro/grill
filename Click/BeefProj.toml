@@ -1,0 +1,10 @@
+FileVersion = 1
+
+[Dependencies]
+corlib = "*"
+
+[Project]
+Name = "Click"
+TargetType = "BeefLib"
+StartupObject = "Click.Program"
+ProcessorMacros = []

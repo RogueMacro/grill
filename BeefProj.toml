@@ -1,11 +1,11 @@
 FileVersion = 1
 
 [Dependencies]
-"Toml-0.1.2" = "*"
-corlib = "*"
 "Serialize-0.1.2" = "*"
+"Grill/Click" = "*"
+"Toml-0.1.2" = "*"
 "BuildTools-0.2.2" = "*"
-Click = "*"
+corlib = "*"
 
 [Project]
 Name = "Grill"

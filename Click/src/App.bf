@@ -1,0 +1,5 @@
+namespace Click;
+
+class App
+{
+}
