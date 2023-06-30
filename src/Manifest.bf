@@ -9,13 +9,25 @@ namespace Grill;
 class Manifest
 {
 	public Package Package ~ delete _;
-	public Dictionary<String, String> Dependencies ~ DeleteDictionaryAndKeysAndValues!(_);
+	public Dictionary<String, Dependency> Dependencies ~ DeleteDictionaryAndKeys!(_);
+
+	[Serializable]
+	public class Package
+	{
+		public String Name ~ delete _;
+		public Version Version;
+		public String Description ~ delete _;
+	}
 }
 
 [Serializable]
-class Package
+enum Dependency
 {
-	public String Name ~ delete _;
-	public Version Version;
-	public String Description ~ delete _;
+	case Simple(VersionReq);
+}
+
+[Serializable]
+class Advanced
+{
+	public VersionReq Version;
 }

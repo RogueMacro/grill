@@ -22,7 +22,7 @@ class Arguments : List<StringView>
 			return .Err;
 
 		let firstArg = this[0];
-		if (!firstArg[0].IsLetter)
+		if (firstArg.IsEmpty || !firstArg[0].IsLetter)
 			return .Err;
 		
 		return (firstArg, GetRange(1));

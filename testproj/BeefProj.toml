@@ -1,0 +1,12 @@
+FileVersion = 1
+
+[Dependencies]
+"Toml-0.1.2" = "*"
+corlib = "*"
+"Serialize-0.1.2" = "*"
+
+[Project]
+Name = "testproj"
+TargetType = "BeefConsoleApplication"
+StartupObject = "testproj.Program"
+ProcessorMacros = []

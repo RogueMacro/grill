@@ -7,17 +7,11 @@ namespace Grill.Commands;
 [Command("new", "Create a new workspace and project")]
 class NewCommand
 {
-	[Argument(Required=true)]
+	[Argument("path", "Path to create the new workspace", "p", ".", true)]
 	public String Path ~ delete _;
 
 	public Result<void> Run()
 	{
-		if (Path == null)
-		{
-			CLI.Context.Report(new $"Path not supplied");
-			return .Err;
-		}
-
 		Directory.CreateDirectory(Path);
 		return .Ok;
 	}

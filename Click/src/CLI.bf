@@ -10,13 +10,15 @@ class CLI
 	public String About = null;
 
 	public static CLI Context { get; private set; }
-	private String _error ~ delete _;
+	public String Error { get; private set; } ~ delete _;
 
 	public readonly Commands Commands = new .() ~ delete _;
 
 	public this(String name)
 	{
 		ProgramName = name;
+
+		Context = this;
 	}
 
 	public void Run(StringView command, params Span<StringView> args)
@@ -26,14 +28,19 @@ class CLI
 
 	public Result<void> Run(StringView command, Span<StringView> args)
 	{
-		Context = this;
 		return Commands.Dispatch(command, args);
 	}
 
 	public void Report(String error)
 	{
-		delete _error;
-		_error = error;
+		delete Error;
+		Error = new .(error);
+	}
+
+	public void Report(String format, params Object[] args)
+	{
+		delete Error;
+		Error = new .()..AppendF(format, params args);
 	}
 
 	public void Help()

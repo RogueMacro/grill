@@ -1,19 +1,18 @@
 using System;
+using System.Reflection;
 
 namespace Click;
 
-[AttributeUsage(.Class, .ReflectAttribute, AlwaysIncludeUser=.All, ReflectUser=.All)]
+[AttributeUsage(.Class, .ReflectAttribute, AlwaysIncludeUser = .All, ReflectUser = .All)]
 struct CommandAttribute : Attribute, IOnTypeInit
 {
 	public String Name;
-	public String _about;
-
-	public String About { get => _about; set mut { _about = value; } }
+	public String About;
 
 	public this(String name, String about = null)
 	{
 		Name = name;
-		_about = about;
+		About = about;
 	}
 
 	[Comptime]
@@ -23,35 +22,26 @@ struct CommandAttribute : Attribute, IOnTypeInit
 	}
 }
 
-[AttributeUsage(.Class, .ReflectAttribute, AlwaysIncludeUser=.All, ReflectUser=.All)]
-struct AttrAttribute : Attribute
-{
-	String _about = null;
-	
-	public String About { get => _about; set mut { _about = value; } }
-
-	public this()
-	{
-		
-	}
-}
-
 typealias ArgAttribute = ArgumentAttribute;
 
 [AttributeUsage(.Field, .ReflectAttribute)]
 struct ArgumentAttribute : Attribute
 {
-	public String Name = null;
+	public String Name;
+	public String About;
+	public char8? Short;
+	public String Default;
+	public bool Required;
 
-	public bool Required = false;
-
-	public this()
+	public this(String name = null, String about = null, String short = null, String _default = null, bool required = false)
 	{
+		if (short?.Length > 1)
+			Runtime.FatalError("Argument short name can only be one character long");
 
-	}
-
-	public this(String name)
-	{
 		Name = name;
+		About = about;
+		Short = short?[0];
+		Default = _default;
+		Required = required;
 	}
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 
 namespace Click;
 
@@ -10,30 +11,30 @@ class HelpCommand
 
 	public Result<void> Run()
 	{
-		let cli = CLI.Context;
+		let ctx = CLI.Context;
 
 		if (Command == null)
 		{
-			Console.Write(Styled(cli.ProgramName)..Green());
-			if (cli.Version != null)
-				Console.Write($" {cli.Version->Major}.{cli.Version->Minor}.{cli.Version->Build}");
+			Console.Write(Styled(ctx.ProgramName)..Green());
+			if (ctx.Version != null)
+				Console.Write($" {ctx.Version->Major}.{ctx.Version->Minor}.{ctx.Version->Build}");
 			Console.WriteLine();
 
-			if (cli.About != null)
-				Console.WriteLine(cli.About);
+			if (ctx.About != null)
+				Console.WriteLine(ctx.About);
 
 			Console.WriteLine($"\n{Styled("USAGE:")..Yellow()}");
-			Console.WriteLine($"    {cli.ProgramName} [OPTIONS] [SUBCOMMAND]");
+			Console.WriteLine($"    {ctx.ProgramName} [OPTIONS] [SUBCOMMAND]");
 
 			int longestCommandName = 0;
-			for (let name in cli.Commands.Keys)
+			for (let name in ctx.Commands.Keys)
 			{
 				if (name.Length > longestCommandName)
 					longestCommandName = name.Length;
 			}
 
 			Console.WriteLine($"\n{Styled("SUBCOMMANDS:")..Yellow()}");
-			for (let (command, type) in cli.Commands)
+			for (let (command, type) in ctx.Commands)
 			{
 				Console.Write($"    {Styled(command)..Green()}");
 				if (type.GetCustomAttribute<CommandAttribute>() case .Ok(let attr))
@@ -41,15 +42,56 @@ class HelpCommand
 				Console.WriteLine();
 			}
 		}
-		else
+		else if (ctx.Commands.ContainsKey(Command))
 		{
-			if (!cli.Commands.ContainsKey(Command))
+			let type = ctx.Commands[Command];
+			let attr = Try!(type.GetCustomAttribute<CommandAttribute>());
+
+			Console.WriteLine(Styled(scope $"{ctx.ProgramName}-{Command}")..Green());
+			if (attr.About != null)
+				Console.WriteLine(attr.About);
+
+			Console.WriteLine($"\n{Styled("USAGE:")..Yellow()}");
+			Console.WriteLine($"    {ctx.ProgramName} {attr.Name} [OPTIONS]");
+
+			List<ArgAttribute> args = scope .();
+			int longestArg = 0;
+			bool anyShort = false;
+			for (let field in type.GetFields())
 			{
-				cli.Report(new $"Unknown command '{Command}'");
-				return .Err;
+				if (field.GetCustomAttribute<ArgAttribute>() case .Ok(var arg))
+				{
+					if (arg.Name == null)
+						arg.Name = scope:: .(field.Name);
+
+					if (arg.Name.Length > longestArg)
+						longestArg = arg.Name.Length;
+
+					if (arg.Short != null)
+						anyShort = true;
+
+					args.Add(arg);
+				}
 			}
 
-			
+			Console.WriteLine($"\n{Styled("OPTIONS:")..Yellow()}");
+			for (let arg in args)
+			{
+				Console.Write("    ");
+				if (arg.Short != null)
+					Console.Write($"{Styled(scope $"-{arg.Short}")..Green()}, ");
+				else if (anyShort)
+					Console.Write("    ");
+				Console.Write($"{Styled(scope $"--{arg.Name}")..Green()}");
+
+				Console.Write($"{scope String(' ', longestArg - arg.Name.Length + 4)}{(arg.About ?? "")} {(arg.Default != null ? scope $"[default: {arg.Default}]" : "")}");
+				Console.WriteLine();
+			}
+		}
+		else
+		{
+			ctx.Report($"Unknown command '{Command}'");
+			return .Err;
 		}
 
 		return .Ok;

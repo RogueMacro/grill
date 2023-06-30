@@ -8,21 +8,11 @@ using Serialize;
 using Toml;
 
 using Grill.Commands;
+using Grill.Console;
+using Grill.Resolver;
 
 namespace Grill
 {
-	struct AttrAttribute : AttrAttribute<0>
-	{
-
-	}
-
-	struct AttrAttribute<S> : Attribute
-		where S : const int
-	{
-		public String[S] Subcommands;
-	}
-
-	[Attr<2>(Subcommands=.("", ""))]
     class Program
     {
 		static CLI CLI = new .("grill") {
@@ -35,31 +25,20 @@ namespace Grill
 			Git.git_libgit2_init();
 
 			CLI.Commands.RegisterAll();
-
-#if DEBUG
-			Directory.CreateDirectory("repl");
-			Directory.SetCurrentDirectory("repl");
-			for (let dir in Directory.EnumerateDirectories("."))
-				Directory.DelTree(dir.GetFileName(..scope .())..Insert(0, "./"));
-			for (let file in Directory.EnumerateDirectories("."))
-				File.Delete(file.GetFileName(..scope .()));
 			
-			Repl();
-			//Console.WriteLine("> grill help");
-			//CLI.Help();
-#else
-			Run(args);
-#endif
+			//Repl();
+			if (Run("make testproj") case .Err)
+			{
+				Console.WriteLine($"{Styled("[Error]")..Bright()..Red()} {CLI.Error}");
+			}
 
 			Git.git_libgit2_shutdown();
-			//Console.WriteLine("\n\n\n---");
 			Console.Read().IgnoreError();
             return 0;
         }
 
-		static Result<void> Run(StringView input)
+		static Result<void> Run(Arguments arguments)
 		{
-			let arguments = scope Arguments(input);
 			if (arguments.Subcommand() case .Ok(let sub))
 				return CLI.Run(sub.cmd, sub.args);
 			
@@ -67,18 +46,34 @@ namespace Grill
 			return .Ok;
 		}
 
+		static Result<void> Run(StringView input)
+		{
+			let arguments = scope Arguments(input);
+			return Run(arguments);
+		}
+
 		static void Repl()
 		{
+			Directory.CreateDirectory("repl");
+			Directory.SetCurrentDirectory("repl");
+			for (let dir in Directory.EnumerateDirectories("."))
+				Directory.DelTree(dir.GetFileName(..scope .())..Insert(0, "./"));
+			for (let file in Directory.EnumerateDirectories("."))
+				File.Delete(file.GetFileName(..scope .()));
+
 			while (true)
 			{
 				Console.Write("$ grill ");
 
-				let input = Console.ReadLine(.. scope .());
-				Console.WriteLine();
-				//let input = "help";
+				let input = Console.ReadLineEcho(.. scope .());
+				if (input == "exit")
+					break;
+
 				if (Run(input) case .Err(let err))
-					Console.WriteLine($"{Styled("[Error] ")..Red()} {CLI.[Friend]_error}");
+					Console.WriteLine($"{Styled("[Error] ")..Red()} {CLI.Error}");
 				Console.WriteLine();
+
+				Console.Read();
 				break;
 			}
 		}
