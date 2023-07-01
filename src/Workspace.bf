@@ -50,13 +50,23 @@ class Workspace
 		}
 	}
 
-	public Result<void> Make()
+	public Result<void> Make(bool quiet = false)
 	{
+		GConsole.Quiet = quiet;
+
+		//if (quiet)
+		//{
+		//	Try!(UpdateStep());
+		//	// Resolve
+		//	Try!(FetchStep(null));
+		//	// Build workspace
+		//}
+
 		MultiProgress multi = scope .();
-		Log log = scope .(multi);
+		Log.SetProgress(multi);
 
 		GConsole.WriteLine($"        {Styled("Make")..Bright()..Cyan()} {Manifest.Package.Name} v{Manifest.Package.Version}");
-		log.SetPosHere();
+		Log.SetPosHere();
 		GConsole.WriteLine();
 
 		multi.SetBaselineHere();
@@ -114,7 +124,7 @@ class Workspace
 			progress.Text.Set("");
 			progress.Tick();
 
-			Log.Print("Fetched", .Cyan, pkg);
+			Log.Print("Fetched", .Green, pkg);
 		}
 
 		progress.Finish();

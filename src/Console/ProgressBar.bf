@@ -50,7 +50,7 @@ class ProgressBar : Progress
 	{
 		let n = offsetX + length + 2 + lastTextLength;
 		for (let _ in 0..<n)
-			Console.Write(' ');
+			GConsole.Write(' ');
 	}
 
 	public override void Render()

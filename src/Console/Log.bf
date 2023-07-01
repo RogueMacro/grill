@@ -3,17 +3,17 @@ using Click;
 
 namespace Grill.Console;
 
-class Log
+static class Log
 {
 	static int32 y;
 	static MultiProgress multi;
 
-	public this(MultiProgress multiProgress)
+	public static void SetProgress(MultiProgress multiProgress)
 	{
 		multi = multiProgress;
 	}
 
-	public void SetPosHere()
+	public static void SetPosHere()
 	{
 		y = GConsole.CursorTop;
 	}

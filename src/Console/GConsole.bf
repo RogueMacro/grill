@@ -4,6 +4,8 @@ namespace Grill.Console;
 
 static class GConsole
 {
+	public static bool Quiet = false;
+
 	static int32 offset;
 
 	static CONSOLE_SCREEN_BUFFER_INFO GetCSBI()
@@ -14,8 +16,11 @@ static class GConsole
 		return csbi;
 	}
 
-	static void Check(bool newline)
+	static mixin Check(bool newline)
 	{
+		if (Quiet)
+			return;
+
 		let csbi = GetCSBI();
 		if (csbi.mCursorPosition.y == csbi.mSize.y - 1 && newline)
 			offset++;
@@ -24,7 +29,11 @@ static class GConsole
 	public static int32 CursorLeft
 	{
 		get => Console.CursorLeft;
-		set => Console.CursorLeft = value;
+		set
+		{
+			if (!Quiet)
+				Console.CursorLeft = value;
+		}
 	}
 
 	public static int32 CursorTop
@@ -32,6 +41,9 @@ static class GConsole
 		get => Console.CursorTop + offset;
 		set
 		{
+			if (Quiet)
+				return;
+
 			int32 y = value - offset;
 			let csbi = GetCSBI();
 			if (y >= csbi.mSize.y)
@@ -48,43 +60,43 @@ static class GConsole
 
 	public static void Write(StringView line)
 	{
-		Check(false);
+		Check!(false);
 		Console.Write(line);
 	}
 
 	public static void Write(StringView fmt, params Object[] args)
 	{
-		Check(false);
+		Check!(false);
 		Console.Write(fmt, params args);
 	}
 
 	public static void Write(Object obj)
 	{
-		Check(false);
+		Check!(false);
 		Console.Write(obj);
 	}
 
 	public static void WriteLine()
 	{
-		Check(true);
+		Check!(true);
 		Console.WriteLine();
 	}
 
 	public static void WriteLine(StringView line)
 	{
-		Check(true);
+		Check!(true);
 		Console.WriteLine(line);
 	}
 
 	public static void WriteLine(StringView fmt, params Object[] args)
 	{
-		Check(true);
+		Check!(true);
 		Console.WriteLine(fmt, params args);
 	}
 
 	public static void WriteLine(Object obj)
 	{
-		Check(true);
+		Check!(true);
 		Console.WriteLine(obj);
 	}
 
