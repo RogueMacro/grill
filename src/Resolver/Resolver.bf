@@ -19,7 +19,7 @@ class Resolver
 {
 	PackageCache cache ~ delete _;
 
-	public this(IRegistry registry)
+	public this(RefCounted<IRegistry> registry)
 	{
 		this.cache = new .(registry);
 	}

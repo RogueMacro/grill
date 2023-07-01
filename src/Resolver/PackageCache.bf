@@ -12,9 +12,9 @@ class PackageCache
 		DeleteDictionaryAndKeys!(_);
 	};
 
-	IRegistry registry ~ delete _;
+	RefCounted<IRegistry> registry ~ _.Release();
 
-	public this(IRegistry registry)
+	public this(RefCounted<IRegistry> registry)
 	{
 		this.registry = registry;
 	}
@@ -36,7 +36,7 @@ class PackageCache
 		}
 		else
 		{
-			let package = Try!(registry.GetPackage(name));
+			let package = Try!(registry->GetPackage(name));
 			packageRef = RefCounted<PackageMetadata>.Attach(package);
 			cache[new .(name)] = packageRef..AddRef();
 		}

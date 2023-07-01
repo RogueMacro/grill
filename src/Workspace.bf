@@ -17,6 +17,8 @@ class Workspace
 
 	String path ~ delete _;
 
+	RefCounted<IRegistry> registry ~ _.Release();
+
 	public this(StringView path)
 	{
 		this.path = new .(path);
@@ -63,6 +65,7 @@ class Workspace
 		//}
 
 		MultiProgress multi = scope .();
+		defer multi.Finish();
 		Log.SetProgress(multi);
 
 		GConsole.WriteLine($"        {Styled("Make")..Bright()..Cyan()} {Manifest.Package.Name} v{Manifest.Package.Version}");
@@ -71,43 +74,54 @@ class Workspace
 
 		multi.SetBaselineHere();
 
-		Step(multi,
+		Try!(Step(multi,
 			 scope $"       {Styled("[1/4]")..Bold()..Dim()} 🧭 Updating ",
 			 scope $"       {Styled("[1/4]")..Bold()..Dim()} 🧭 Up to date ", 
-			 scope => UpdateStep);
+			 scope => Update)
+			 ..Context("Failed to update registry"));
 
-		Step(multi,
+		Try!(Step(multi,
 			 scope $"       {Styled("[2/4]")..Bold()..Dim()} 🔍 Resolving ",
 			 scope $"       {Styled("[2/4]")..Bold()..Dim()} 🔍 Resolution ready ",
-			 scope => Dummy);
+			 scope => Resolve)
+			 ..Context("Failed to resolve dependencies"));
 
-		Step(multi,
+		Try!(Step(multi,
 			 scope $"       {Styled("[3/4]")..Bold()..Dim()} 🚚 Fetching ",
 			 scope $"       {Styled("[3/4]")..Bold()..Dim()} 🚚 Packages on disk ", 
-			 scope () => FetchStep(multi));
+			 scope () => Fetch(multi))
+			 ..Context("Failed to fetch packages"));
 
-		Step(multi,
+		Try!(Step(multi,
 			 scope $"       {Styled("[4/4]")..Bold()..Dim()} 📦 Building ",
 			 scope $"       {Styled("[4/4]")..Bold()..Dim()} 📦 Workspace done ",
-			 scope => Dummy);
-
-		multi.Finish();
+			 scope => Build)
+			 ..Context("Failed to build workspace"));
 
 		GConsole.WriteLine("             🍝 Enjoy your spaghetti!");
 
 		return .Ok;
 	}
 
-	Result<void> UpdateStep()
+	Result<void> Update()
 	{
-		PathRegistry registry = new .("https://github.com/roguemacro/grill-index");
-		defer delete registry;
-		registry.Fetch();
+		PathRegistry reg = new .("https://github.com/roguemacro/grill-index");
+		registry = .Attach(reg);
+		reg.Fetch();
 
 		return .Ok;
 	}
 
-	Result<void> FetchStep(MultiProgress multi)
+	Result<void> Resolve()
+	{
+		Resolver resolver = scope .(registry..AddRef());
+		let lock = Try!(resolver.Resolve(Manifest));
+		defer delete lock;
+
+		return .Ok;
+	}
+
+	Result<void> Fetch(MultiProgress multi)
 	{
 		String[] pkgs = scope .[]("Serialize", "Toml", "BuildTools", "Click");
 
@@ -133,7 +147,7 @@ class Workspace
 		return .Ok;
 	}
 
-	Result<void> Dummy()
+	Result<void> Build()
 	{
 		//Thread.Sleep(1000);
 		return .Ok;

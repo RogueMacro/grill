@@ -10,7 +10,7 @@ class CLI
 	public String About = null;
 
 	public static CLI Context { get; private set; }
-	public String Error { get; private set; } ~ delete _;
+	public List<String> ErrorStack = new .() ~ DeleteContainerAndItems!(_);
 
 	public readonly Commands Commands = new .() ~ delete _;
 
@@ -33,14 +33,22 @@ class CLI
 
 	public void Report(String error)
 	{
-		delete Error;
-		Error = new .(error);
+		ErrorStack.Add(new .(error));
 	}
 
 	public void Report(String format, params Object[] args)
 	{
-		delete Error;
-		Error = new .()..AppendF(format, params args);
+		ErrorStack.Add(new String()..AppendF(format, params args));
+	}
+
+	public void PrintErrorStackTrace()
+	{
+		if (ErrorStack.IsEmpty)
+			return;
+
+		Console.WriteLine(ErrorStack[^1]);
+		for (let error in ErrorStack[..<^1].Reversed)
+			Console.WriteLine($"\n    Caused by: {error}");
 	}
 
 	public void Help()

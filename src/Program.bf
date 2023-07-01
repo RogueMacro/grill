@@ -29,7 +29,8 @@ namespace Grill
 			//Repl();
 			if (Run("make testproj") case .Err)
 			{
-				Console.WriteLine($"{Styled("[Error]")..Bright()..Red()} {CLI.Error}");
+				Console.Write($"\n{Styled("[error]")..Bright()..Red()} ");
+				CLI.PrintErrorStackTrace();
 			}
 
 			Git.git_libgit2_shutdown();
@@ -70,7 +71,10 @@ namespace Grill
 					break;
 
 				if (Run(input) case .Err(let err))
-					Console.WriteLine($"{Styled("[Error] ")..Red()} {CLI.Error}");
+				{
+					Console.WriteLine($"{Styled("[Error] ")..Bright()..Red()} ");
+					CLI.PrintErrorStackTrace();
+				}
 				Console.WriteLine();
 
 				Console.Read();
