@@ -3,25 +3,13 @@ using System.Collections;
 
 namespace Grill.Resolver;
 
-class Lock : Dictionary<String, List<Version>>
-{
-	public ~this()
-	{
-		for (var (key, value) in this)
-		{
-			delete key;
-			delete value;
-		}
-	}
-}
-
 class Resolver
 {
-	PackageCache cache ~ delete _;
+	RefCounted<RegistryCache> cache ~ _.Release();
 
-	public this(RefCounted<IRegistry> registry)
+	public this(RefCounted<RegistryCache> cache)
 	{
-		this.cache = new .(registry);
+		this.cache = cache..AddRef();
 	}
 
 	public Result<Lock> Resolve(Manifest manifest)
@@ -47,7 +35,7 @@ class Resolver
 			while (i >= 0 && i < candidates.Count)
 			{
 				Candidate candidate = candidates[i];
-				if (!cache.ContainsPackage(candidate.Name))
+				if (!cache->ContainsPackage(candidate.Name))
 					return .Err;
 
 				Result<Version> nextVersion = .Err;
@@ -85,7 +73,7 @@ class Resolver
 
 				if (nextVersion case .Ok(let version))
 				{
-					let dependencies = cache.GetPackage(candidate.Name).Value.versions[version].deps;
+					let dependencies = cache->GetPackage(candidate.Name).Value.versions[version].deps;
 					for (let (dep, req) in dependencies)
 						candidates.Add(scope:: .(dep, req, cache));
 
@@ -135,7 +123,7 @@ class Resolver
 			for (let candidate in candidates)
 			{
 				let dependencies =
-					cache.GetPackage(candidate.Name).Value
+					cache->GetPackage(candidate.Name).Value
 					.versions[candidate.Version.Value]
 					.deps;
 
@@ -166,7 +154,7 @@ class Resolver
 		Lock lock = new .();
 		for (let candidate in candidates)
 		{
-			List<Version> versions;
+			HashSet<Version> versions;
 			if (lock.GetValue(candidate.Name) case .Ok(let v))
 				versions = v;
 			else
@@ -184,7 +172,7 @@ class Resolver
 		public Version? Version;
 		public List<Version> AvailableVersions ~ delete _;
 
-		public this(StringView name, VersionReq req, PackageCache cache)
+		public this(StringView name, VersionReq req, RegistryCache cache)
 		{
 			Name = new .(name);
 			Requirement = req;
@@ -194,7 +182,7 @@ class Resolver
 
 		/// Updates AvailableVersions to all that matches the
 		/// version requirement.
-		public Result<void> UpdateAvailableVersions(PackageCache cache)
+		public Result<void> UpdateAvailableVersions(RegistryCache cache)
 		{
 			AvailableVersions.Clear();
 			let package = Try!(cache.GetPackage(Name));

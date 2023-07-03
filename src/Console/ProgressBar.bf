@@ -28,10 +28,17 @@ class ProgressBar : Progress
 		RenderAtY();
 	}
 
+	public void UpdateText(StringView format, params Object[] args)
+	{
+		String text = scope .()..AppendF(format, params args);
+		UpdateText(text);
+	}
+
 	public void Tick()
 	{
 		let prevLength = progressLength;
 		current++;
+		current = Math.Clamp(current, 0, steps);
 		if (progressLength > prevLength)
 			RenderAtY();
 	}
@@ -48,7 +55,7 @@ class ProgressBar : Progress
 
 	public override void ClearLine()
 	{
-		let n = offsetX + length + 2 + lastTextLength;
+		let n = offsetX + length + 3 + lastTextLength; // +2 for '[' and ']' and +1 for space between text and bar
 		for (let _ in 0..<n)
 			GConsole.Write(' ');
 	}

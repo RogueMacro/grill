@@ -4,7 +4,7 @@ using Serialize.Implementation;
 
 namespace System
 {
-	extension Version : ISerializableKey
+	extension Version : ISerializableKey, ISerializeAsPrimitive
 	{
 		public void Serialize<S>(S serializer) where S : ISerializer
 		{

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Click;
 using Toml;
 
 using static BuildTools.Git.Git;
@@ -28,6 +29,8 @@ class PathRegistry : IRegistry
 			.GetHashCode()
 			.ToString(hash);
 
+		hash.TrimStart('-');
+
 		Path.InternalCombine(path, Paths.Home, "registry", hash);
 	}
 
@@ -35,7 +38,10 @@ class PathRegistry : IRegistry
 	{
 		String packagePath = Path.InternalCombine(.. scope .(), path, name);
 		if (!File.Exists(packagePath))
+		{
+			CLI.Context.Report($"Package '{name}' doesn't exist");
 			return .Err;
+		}
 
 		String file = File.ReadAllText(packagePath, .. scope .());
 		return Toml.Deserialize<PackageMetadata>(file);

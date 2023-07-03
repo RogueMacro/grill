@@ -21,7 +21,7 @@ class ProgressSpinner : Progress
 
 	public void EnableSteadyTick(int interval)
 	{
-		spinner = new .(RealLength(message) + 1, y, interval, message, finish);
+		spinner = new .(GConsole.RealLength(message) + 1, y, interval, message, finish);
 
 		using (ConsoleLock.Acquire())
 		{
@@ -40,45 +40,17 @@ class ProgressSpinner : Progress
 		task.Start();
 	}
 
-	int RealLength(StringView msg)
-	{
-		char32* buf = new char32[64]*;
-		defer delete buf;
-		System.Text.UTF32.Encode(msg, buf, 64);
-
-		int len = 0;
-		bool escape = false;
-		for (int i = 0; i < 64; i++)
-		{
-			let c = buf[i];
-			if (c == '\0')
-				break;
-
-			if (escape)
-			{
-				if (c == 'm')
-					escape = false;
-			}
-			else if (c == '\x1B')
-				escape = true;
-			else
-				len++;
-		}
-
-		return len;
-	}
-
 	public override void ClearLine()
 	{
 		if (isFinished)
 		{
-			let msgLength = RealLength(finish) + RealLength(StringView((char8*)&spinner.[Friend]end));
+			let msgLength = GConsole.RealLength(finish) + GConsole.RealLength(StringView((char8*)&spinner.[Friend]end));
 			for (int _ in 0..<msgLength)
 				GConsole.Write(' ');
 		}
 		else
 		{
-			let msgLength = RealLength(message) + 2;
+			let msgLength = GConsole.RealLength(message) + 2;
 			for (int _ in 0..<msgLength)
 				GConsole.Write(' ');
 		}
@@ -111,8 +83,8 @@ class ProgressSpinner : Progress
 		using (ConsoleLock.Acquire())
 		{
 			let origin = (GConsole.CursorLeft, GConsole.CursorTop);
-			let msgLength = RealLength(message);
-			let finishLength = RealLength(finish);
+			let msgLength = GConsole.RealLength(message);
+			let finishLength = GConsole.RealLength(finish);
 
 			GConsole.CursorLeft = 0;
 			GConsole.CursorTop = y;

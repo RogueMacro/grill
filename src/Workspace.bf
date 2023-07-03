@@ -8,16 +8,20 @@ using Grill.Resolver;
 using Click;
 using Toml;
 using Serialize;
+using System.Diagnostics;
 
 namespace Grill;
 
 class Workspace
 {
 	public Manifest Manifest ~ delete _;
+	public Lock Lock ~ DeleteDictionaryAndKeysAndValues!(_);
+
+	public Packages Packages ~ delete _;
 
 	String path ~ delete _;
 
-	RefCounted<IRegistry> registry ~ _.Release();
+	RefCounted<RegistryCache> cache ~ if (_ != null) _.Release();
 
 	public this(StringView path)
 	{
@@ -26,30 +30,35 @@ class Workspace
 
 	public Result<void> Open()
 	{
-		String filePath = Path.InternalCombine(.. scope .(), path, Paths.MANIFEST_FILENAME);
-		if (!File.Exists(filePath))
+		let manifestPath = Path.InternalCombine(.. scope .(), path, Paths.MANIFEST_FILENAME);
+		if (!File.Exists(manifestPath))
 		{
 			CLI.Context.Report("Manifest not found");
 			return .Err;
 		}
 
 		String file = scope .();
-		if (File.ReadAllText(filePath, file) case .Err)
-		{
-			CLI.Context.Report("Failed to read manifest");
-			return .Err;
-		}
+		Try!(File.ReadAllText(manifestPath, file)..Context("Failed to read manifest"));
 
 		Serialize<Toml> serializer = scope .();
-		switch (serializer.Deserialize<Manifest>(file))
+		Manifest = Try!(serializer.Deserialize<Manifest>(file)
+			..Context(scope (str) => serializer.Error.ToString(str))
+			..Context($"Failed to deserialize manifest"));
+
+		let lockPath = Path.InternalCombine(.. scope .(), path, Paths.LOCK_FILENAME);
+		if (File.Exists(lockPath))
 		{
-		case .Ok(let manifest):
-			Manifest = manifest;
-			return .Ok;
-		case .Err:
-			CLI.Context.Report($"Failed to deserialize manifest: {serializer.Error}");
-			return .Err;
+			file.Clear();
+			Try!(File.ReadAllText(lockPath, file)..Context("Failed to read lock file"));
+
+			Lock = Try!(serializer.Deserialize<Lock>(file)
+				..Context(scope (str) => serializer.Error.ToString(str))
+				..Context($"Failed to deserialize lock file"));
 		}
+
+		Packages = new .(Path.InternalCombine(.. scope .(), path, Paths.PACKAGE_DIRECTORY));
+
+		return .Ok;
 	}
 
 	public Result<void> Make(bool quiet = false)
@@ -64,39 +73,41 @@ class Workspace
 		//	// Build workspace
 		//}
 
-		MultiProgress multi = scope .();
-		defer multi.Finish();
-		Log.SetProgress(multi);
+		{
+			MultiProgress multi = scope .();
+			defer multi.Finish();
+			Log.SetProgress(multi);
 
-		GConsole.WriteLine($"        {Styled("Make")..Bright()..Cyan()} {Manifest.Package.Name} v{Manifest.Package.Version}");
-		Log.SetPosHere();
-		GConsole.WriteLine();
+			GConsole.WriteLine($"        {Styled("Make")..Bright()..Cyan()} {Manifest.Package.Name} v{Manifest.Package.Version}");
+			Log.SetPosHere();
+			GConsole.WriteLine();
 
-		multi.SetBaselineHere();
+			multi.SetBaselineHere();
 
-		Try!(Step(multi,
-			 scope $"       {Styled("[1/4]")..Bold()..Dim()} 🧭 Updating ",
-			 scope $"       {Styled("[1/4]")..Bold()..Dim()} 🧭 Up to date ", 
-			 scope => Update)
-			 ..Context("Failed to update registry"));
+			Try!(Step(multi,
+				 scope $"       {Styled("[1/4]")..Bold()..Dim()} 🧭 Updating ",
+				 scope $"       {Styled("[1/4]")..Bold()..Dim()} 🧭 Up to date ", 
+				 scope => Update)
+				 ..Context("Failed to update registry"));
 
-		Try!(Step(multi,
-			 scope $"       {Styled("[2/4]")..Bold()..Dim()} 🔍 Resolving ",
-			 scope $"       {Styled("[2/4]")..Bold()..Dim()} 🔍 Resolution ready ",
-			 scope => Resolve)
-			 ..Context("Failed to resolve dependencies"));
+			Try!(Step(multi,
+				 scope $"       {Styled("[2/4]")..Bold()..Dim()} 🔍 Resolving ",
+				 scope $"       {Styled("[2/4]")..Bold()..Dim()} 🔍 Resolution ready ",
+				 scope => Resolve)
+				 ..Context("Failed to resolve dependencies"));
 
-		Try!(Step(multi,
-			 scope $"       {Styled("[3/4]")..Bold()..Dim()} 🚚 Fetching ",
-			 scope $"       {Styled("[3/4]")..Bold()..Dim()} 🚚 Packages on disk ", 
-			 scope () => Fetch(multi))
-			 ..Context("Failed to fetch packages"));
+			Try!(Step(multi,
+				 scope $"       {Styled("[3/4]")..Bold()..Dim()} 🚚 Fetching ",
+				 scope $"       {Styled("[3/4]")..Bold()..Dim()} 🚚 Packages on disk ", 
+				 scope () => Fetch(multi))
+				 ..Context("Failed to fetch packages"));
 
-		Try!(Step(multi,
-			 scope $"       {Styled("[4/4]")..Bold()..Dim()} 📦 Building ",
-			 scope $"       {Styled("[4/4]")..Bold()..Dim()} 📦 Workspace done ",
-			 scope => Build)
-			 ..Context("Failed to build workspace"));
+			Try!(Step(multi,
+				 scope $"       {Styled("[4/4]")..Bold()..Dim()} 📦 Building ",
+				 scope $"       {Styled("[4/4]")..Bold()..Dim()} 📦 Workspace done ",
+				 scope => Build)
+				 ..Context("Failed to build workspace"));
+		}
 
 		GConsole.WriteLine("             🍝 Enjoy your spaghetti!");
 
@@ -105,45 +116,61 @@ class Workspace
 
 	Result<void> Update()
 	{
-		PathRegistry reg = new .("https://github.com/roguemacro/grill-index");
-		registry = .Attach(reg);
-		reg.Fetch();
+		PathRegistry registry = new .("https://github.com/roguemacro/grill-index");
+		RefCounted<IRegistry> registryRef = .Attach(registry);
+		cache = .Attach(new .(registryRef));
+		registry.Fetch();
+		registryRef.Release();
 
 		return .Ok;
 	}
 
 	Result<void> Resolve()
 	{
-		Resolver resolver = scope .(registry..AddRef());
-		let lock = Try!(resolver.Resolve(Manifest));
-		defer delete lock;
+		let previousLock = Lock;
+		Resolver resolver = scope .(cache);
+		Lock = Try!(resolver.Resolve(Manifest));
+		DeleteDictionaryAndKeysAndValues!(previousLock);
+		
+		String s = new .();
+		defer delete s;
+		Toml.Serialize(Lock, s);
 
-		return .Ok;
+		String filePath = Path.InternalCombine(.. scope .(), path, Paths.LOCK_FILENAME);
+		return File.WriteAllText(filePath, s)..Context("Failed to write lock file");
 	}
 
 	Result<void> Fetch(MultiProgress multi)
 	{
-		String[] pkgs = scope .[]("Serialize", "Toml", "BuildTools", "Click");
+		List<(String, Version)> pkgs = scope .();
+		for (let (pkg, versions) in Lock)
+			for (let version in versions)
+				pkgs.Add((pkg, version));
 
 		ProgressBar progress = scope .(pkgs.Count);
 		multi.Add(progress);
+		defer multi.Remove(progress);
 
 		progress.Tick();
-		for (let pkg in pkgs)
-		{
-			progress.UpdateText(pkg);
 
-			Thread.Sleep(1000);
+		for (let (pkg, version) in pkgs)
+		{
+			progress.UpdateText($"{pkg} 0%");
+
+			let package = Try!(Packages.Install(pkg, version, cache, scope (stats) => {
+				let percent = Math.Floor((float)stats.indexed_objects / stats.total_objects * 100);
+				progress.UpdateText($"{pkg} {percent}%");
+			})
+				..Context($"Failed to install {pkg} v{version}"));
 
 			progress.Text.Set("");
 			progress.Tick();
 
-			Log.Print("Fetched", .Green, pkg);
+			if (package.JustInstalled)
+				Log.Print(Styled("Fetched")..Bright()..Green(), "{} v{}", pkg, version);
 		}
 
 		progress.Finish();
-		multi.Remove(progress);
-
 		return .Ok;
 	}
 

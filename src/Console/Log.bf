@@ -18,7 +18,7 @@ static class Log
 		y = GConsole.CursorTop;
 	}
 
-	public static void Print(StringView prefix, Color color, StringView format, params Object[] args)
+	public static void Print(Object prefix, StringView format, params Object[] args)
 	{
 		using (ConsoleLock.Acquire())
 		{
@@ -26,13 +26,16 @@ static class Log
 			GConsole.CursorLeft = 0;
 			GConsole.CursorTop = y;
 
+			var prefix;
+			String prefix = prefix.ToString(.. scope .());
 			String pre = scope .();
-			pre.AppendF("{0,12} ", prefix);
-			var styledPre = Styled(pre);
-			styledPre.[Friend]Foreground = color;
-			styledPre.Bright();
+			let spaces = 12 - GConsole.RealLength(prefix);
+			if (spaces > 0)
+				pre.Append(' ', spaces);
+			pre.AppendF("{} ", prefix);
 
-			String fmt = styledPre.ToString(.. scope .());
+
+			String fmt = pre.ToString(.. scope .());
 			fmt.Append(format);
 
 			GConsole.WriteLine(fmt, params args);

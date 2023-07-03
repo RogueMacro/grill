@@ -1,10 +1,10 @@
 using System;
 using System.Collections;
 
-namespace Grill.Resolver;
+namespace Grill;
 
 /// A cache of previously loaded packages.
-class PackageCache
+class RegistryCache
 {
 	Dictionary<String, RefCounted<PackageMetadata>> cache = new .() ~ {
 		for (let value in _.Values)
@@ -16,7 +16,7 @@ class PackageCache
 
 	public this(RefCounted<IRegistry> registry)
 	{
-		this.registry = registry;
+		this.registry = registry..AddRef();
 	}
 
 	/// Get a package from the cache or load it from the registry.

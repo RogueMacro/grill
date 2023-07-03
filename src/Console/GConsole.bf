@@ -8,14 +8,6 @@ static class GConsole
 
 	static int32 offset;
 
-	static CONSOLE_SCREEN_BUFFER_INFO GetCSBI()
-	{
-		let handle = Console.[Friend]GetStdHandle(Console.STD_OUTPUT_HANDLE);
-		CONSOLE_SCREEN_BUFFER_INFO csbi;
-		GetConsoleScreenBufferInfo(handle, out csbi);
-		return csbi;
-	}
-
 	static mixin Check(bool newline)
 	{
 		if (Quiet)
@@ -55,6 +47,18 @@ static class GConsole
 			{
 				Console.CursorTop = y;
 			}
+		}
+	}
+
+	public static bool CursorVisible
+	{
+		get => GetCursorInfo().visible;
+		set
+		{
+			let handle = Console.[Friend]GetStdHandle(Console.STD_OUTPUT_HANDLE);
+			var cursor = GetCursorInfo();
+			cursor.visible = value;
+			SetConsoleCursorInfo(handle, &cursor);
 		}
 	}
 
@@ -100,6 +104,50 @@ static class GConsole
 		Console.WriteLine(obj);
 	}
 
+	public static int RealLength(StringView msg)
+	{
+		char32* buf = new char32[64]*;
+		defer delete buf;
+		System.Text.UTF32.Encode(msg, buf, 64);
+
+		int len = 0;
+		bool escape = false;
+		for (int i = 0; i < 64; i++)
+		{
+			let c = buf[i];
+			if (c == '\0')
+				break;
+
+			if (escape)
+			{
+				if (c == 'm')
+					escape = false;
+			}
+			else if (c == '\x1B')
+				escape = true;
+			else
+				len++;
+		}
+
+		return len;
+	}
+
+	static CONSOLE_SCREEN_BUFFER_INFO GetCSBI()
+	{
+		let handle = Console.[Friend]GetStdHandle(Console.STD_OUTPUT_HANDLE);
+		CONSOLE_SCREEN_BUFFER_INFO csbi;
+		GetConsoleScreenBufferInfo(handle, out csbi);
+		return csbi;
+	}
+
+	static CONSOLE_CURSOR_INFO GetCursorInfo()
+	{
+		let handle = Console.[Friend]GetStdHandle(Console.STD_OUTPUT_HANDLE);
+		CONSOLE_CURSOR_INFO cursor;
+		GetConsoleCursorInfo(handle, out cursor);
+		return cursor;
+	}
+
 	[CRepr]
 	struct SMALL_RECT {
 	  public uint16 Left;
@@ -125,6 +173,19 @@ static class GConsole
 		public uint16 y;
 	}
 
+	[CRepr]
+	struct CONSOLE_CURSOR_INFO
+	{
+		public uint32 size;
+		public bool visible;
+	}
+
 	[CLink, CallingConvention(.Stdcall)]
 	static extern Windows.IntBool GetConsoleScreenBufferInfo(Windows.Handle hConsoleOutput, out CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo);
+
+	[CLink, CallingConvention(.Stdcall)]
+	static extern Windows.IntBool GetConsoleCursorInfo(Windows.Handle hConsoleOutput, out CONSOLE_CURSOR_INFO lpConsoleCursorInfo);
+
+	[CLink, CallingConvention(.Stdcall)]
+	static extern Windows.IntBool SetConsoleCursorInfo(Windows.Handle hConsoleOutput, CONSOLE_CURSOR_INFO* lpConsoleCursorInfo);
 }

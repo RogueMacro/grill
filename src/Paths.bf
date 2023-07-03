@@ -8,6 +8,7 @@ static class Paths
 {
 	public const String MANIFEST_FILENAME = "Package.toml";
 	public const String LOCK_FILENAME = "Package.lock";
+	public const String PACKAGE_DIRECTORY = "pkg";
 
 #if BF_PLATFORM_WINDOWS
 	public static String Home =
@@ -17,6 +18,15 @@ static class Paths
 			home
 		} ~ delete _;
 #endif
+
+	public static String Temporary = Path.InternalCombine(.. new .(), Home, "tmp") ~ delete _;
+
+	public static void ClearTemporary()
+	{
+		if (Directory.Exists(Temporary))
+			Directory.DelTree(Temporary);
+		Directory.CreateDirectory(Temporary);
+	}
 
 	static Result<void> GetProfileDirectory(String buffer)
 	{
@@ -30,7 +40,7 @@ static class Paths
 	}
 
 	[Import("shell32.lib"), CLink, CallingConvention(.Stdcall)]
-	public static extern int SHGetKnownFolderPath(GUID rfid, uint32 dwFlags, Windows.Handle hToken, char16** ppszPath);
+	static extern int SHGetKnownFolderPath(GUID rfid, uint32 dwFlags, Windows.Handle hToken, char16** ppszPath);
 
 	[CRepr]
 	struct GUID {

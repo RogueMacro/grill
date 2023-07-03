@@ -22,10 +22,14 @@ namespace Grill
 
         public static int Main(String[] args)
         {
+			GConsole.CursorVisible = false;
+
 			Git.git_libgit2_init();
 
 			CLI.Commands.RegisterAll();
-			
+
+			Paths.ClearTemporary();
+
 			//Repl();
 			if (Run("make testproj") case .Err)
 			{
@@ -34,6 +38,8 @@ namespace Grill
 			}
 
 			Git.git_libgit2_shutdown();
+
+			GConsole.CursorVisible = true;
 			Console.Read().IgnoreError();
             return 0;
         }
