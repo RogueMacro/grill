@@ -6,12 +6,12 @@ using BuildTools.Git;
 using Click;
 using Serialize;
 using Toml;
+using SyncErr;
 
-using Grill.Commands;
 using Grill.Console;
-using Grill.Resolver;
+using Grill.CLI.Commands;
 
-namespace Grill
+namespace Grill.CLI
 {
     class Program
     {
@@ -34,7 +34,7 @@ namespace Grill
 			if (Run("make testproj") case .Err)
 			{
 				Console.Write($"\n{Styled("[error]")..Bright()..Red()} ");
-				CLI.PrintErrorStackTrace();
+				Errors.PrintBacktrace();
 			}
 
 			Git.git_libgit2_shutdown();
@@ -44,7 +44,7 @@ namespace Grill
             return 0;
         }
 
-		static Result<void> Run(Arguments arguments)
+		static Result<void, CLI.CommandError> Run(Arguments arguments)
 		{
 			if (arguments.Subcommand() case .Ok(let sub))
 				return CLI.Run(sub.cmd, sub.args);
@@ -53,7 +53,7 @@ namespace Grill
 			return .Ok;
 		}
 
-		static Result<void> Run(StringView input)
+		static Result<void, CLI.CommandError> Run(StringView input)
 		{
 			let arguments = scope Arguments(input);
 			return Run(arguments);
@@ -79,7 +79,7 @@ namespace Grill
 				if (Run(input) case .Err(let err))
 				{
 					Console.WriteLine($"{Styled("[Error] ")..Bright()..Red()} ");
-					CLI.PrintErrorStackTrace();
+					Errors.PrintBacktrace();
 				}
 				Console.WriteLine();
 

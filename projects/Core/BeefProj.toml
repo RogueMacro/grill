@@ -1,0 +1,5 @@
+FileVersion = 1
+Dependencies = {SyncErr = "*", "Toml-0.1.3" = "*", "BuildTools-0.2.3" = "*", "Serialize-0.1.3" = "*", corlib = "*", Iterators = "*"}
+
+[Project]
+Name = "Grill"

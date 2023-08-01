@@ -1,0 +1,10 @@
+FileVersion = 1
+
+[Dependencies]
+corlib = "*"
+
+[Project]
+Name = "SyncErr"
+TargetType = "BeefLib"
+StartupObject = "SyncErr.Program"
+ProcessorMacros = []

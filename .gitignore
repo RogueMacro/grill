@@ -3,6 +3,7 @@ recovery/
 pkg/
 tmp/
 bin/
+testproj/
 
 BeefSpace.toml
 BeefSpace_User.toml

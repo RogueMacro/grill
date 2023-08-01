@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using Click;
 
-namespace Grill.Commands;
+namespace Grill.CLI.Commands;
 
 [Command("new", "Create a new workspace and project")]
 class NewCommand

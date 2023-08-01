@@ -1,7 +1,8 @@
 using System;
+using Grill.Console;
 using Click;
 
-namespace Grill.Commands;
+namespace Grill.CLI.Commands;
 
 [Command("make", "Install the neccessary dependencies and make a workspace")]
 class MakeCommand
@@ -14,9 +15,11 @@ class MakeCommand
 
 	public Result<void> Run()
 	{
+		GConsole.Quiet = Quiet;
+
 		Workspace workspace = scope .(Path);
 		Try!(workspace.Open());
 
-		return workspace.Make(Quiet);
+		return workspace.Make();
 	}
 }

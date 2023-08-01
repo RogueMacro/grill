@@ -1,0 +1,10 @@
+[Package]
+Name = "Grill"
+Version = "0.1.0"
+Description = "Core library of Grill"
+
+[Dependencies]
+Serialize = "0.1.3"
+Toml = "0.1.3"
+BuildTools = "0.2.3"
+SyncErr = { Path = "../SyncErr" }

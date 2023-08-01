@@ -1,14 +1,6 @@
 FileVersion = 1
-
-[Dependencies]
-corlib = "*"
-"Toml-0.1.3" = "*"
-"BuildTools-0.2.3" = "*"
-"Serialize-0.1.3" = "*"
-Click = "*"
+Dependencies = {SyncErr = "*", Click = "*", "BuildTools-0.2.3" = "*", "Serialize-0.1.3" = "*", "Toml-0.1.3" = "*", corlib = "*", Grill = "*"}
 
 [Project]
-Name = "Grill"
-TargetType = ""
-StartupObject = "Grill.Program"
-ProcessorMacros = []
+Name = "Grill.CLI"
+StartupObject = "Grill.CLI.Program"

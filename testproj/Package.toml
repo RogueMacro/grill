@@ -1,8 +1,0 @@
-[Package]
-Name = "testproj"
-Version = "0.1.0"
-Description = "This is just a test project"
-
-[Dependencies]
-Toml = "0.1.2"
-Serialize = "0.1"
