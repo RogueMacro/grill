@@ -1,19 +1,9 @@
 FileVersion = 1
-
-[Dependencies]
-corlib = "*"
-Grill = "*"
-Click = "*"
-SyncErr = "*"
+Dependencies = {corlib = "*", Grill = "*", Click = "*", SyncErr = "*"}
 
 [Project]
 Name = "Grill.CLI"
-TargetType = "BeefConsoleApplication"
 StartupObject = "Grill.CLI.Program"
-
-[Configs]
-
-[Configs.Debug]
 
 [Configs.Debug.Win64]
 PostBuildCmds = ["CopyFilesIfNewer(\"$(WorkspaceDir)/resources\",\"$(TargetDir)\")"]
