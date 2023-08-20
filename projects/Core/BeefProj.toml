@@ -1,5 +1,0 @@
-FileVersion = 1
-Dependencies = {corlib = "*", SyncErr = "*", Iterators = "*", "BuildTools-0.2.4" = "*", "Serialize-0.1.5" = "*", "Toml-0.1.5" = "*"}
-
-[Project]
-Name = "Grill"

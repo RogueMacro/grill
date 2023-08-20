@@ -1,0 +1,9 @@
+[Package]
+Name = "Grill.CLI"
+Version = "0.1.0"
+Description = "Command-line interface of Grill"
+
+[Dependencies]
+Grill = { Path = "../.." }
+Click = { Path = "../Click" }
+SyncErr = { Path = "../SyncErr" }

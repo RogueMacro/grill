@@ -1,12 +1,15 @@
 [Package]
-Name = "Grill.CLI"
+Name = "Grill"
 Version = "0.1.0"
 Description = "A package manager for the Beef Programming Language"
 
+[Workspace]
+Members = ["projects/CLI"]
+StartupProject = "Grill.CLI"
+
 [Dependencies]
-Grill = { Path = "projects/Core" }
-Click = { Path = "projects/Click" }
-SyncErr = { Path = "projects/SyncErr" }
-BuildTools = "0.2.4"
 Serialize = "0.1.6"
 Toml = "0.1.6"
+BuildTools = "0.2.4"
+SyncErr = { Path = "projects/SyncErr" }
+Iterators = { Path = "projects/Iterators" }
