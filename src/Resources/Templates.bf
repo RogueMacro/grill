@@ -6,14 +6,12 @@ static class Templates
 {
 	public static IResource Manifest ~ delete _;
 	public static IResource BeefProj ~ delete _;
-	public static IResource BeefProjBinary ~ delete _;
 	public static IResource Program ~ delete _;
 
 	public static void Init()
 	{
 		Manifest = ResourceManager.Get("templates/Package.toml", => ManifestDefault);
 		BeefProj = ResourceManager.Get("templates/BeefProj.toml", => BeefProjDefault);
-		BeefProjBinary = ResourceManager.Get("templates/BeefProjBinary.toml", => BeefProjBinaryDefault);
 		Program = ResourceManager.Get("templates/Program.bf", => ProgramDefault);
 	}
 
@@ -37,16 +35,6 @@ static class Templates
 		[Project]
 		Name = "$(Name)"
 		TargetType = "$(TargetType)"
-		""");
-
-	static IResource BeefProjBinaryDefault() =>
-		new InMemoryResource("BeefProj.toml",
-		"""
-		FileVersion = 1
-		Dependencies = {}
-
-		[Project]
-		Name = "$(Name)"
 		StartupObject = "$(Namespace).Program"
 		""");
 

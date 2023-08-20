@@ -76,23 +76,12 @@ class Package
 		Try!(Templates.Manifest.Place(path, ("$(Name)", name)));
 
 		let ns = scope String(name)..Replace('-', '_');
-
-		if (targetType case .Binary)
-		{
-			Try!(Templates.BeefProjBinary.Place(
-				path,
-				("$(Name)", name),
-				("$(Namespace)", ns)
-			));
-		}
-		else
-		{
-			Try!(Templates.BeefProj.Place(
-				path,
-				("$(Name)", name),
-				("$(TargetType)", targetType.ToString(.. scope .()))
-			));
-		}
+		Try!(Templates.BeefProj.Place(
+			path,
+			("$(Name)", name),
+			("$(TargetType)", targetType.ToString(.. scope .())),
+			("$(Namespace)", ns)
+		));
 
 		let src = Path.InternalCombine(.. scope .(), path, "src");
 		Directory.CreateDirectory(src);

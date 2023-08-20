@@ -1,0 +1,3 @@
+Serialize = ["0.1.6"]
+Toml = ["0.1.6"]
+BuildTools = ["0.2.4"]

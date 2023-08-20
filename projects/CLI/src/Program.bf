@@ -40,6 +40,7 @@ namespace Grill.CLI
 				Errors.PrintBacktrace();
 			}
 
+			//Console.Read().IgnoreError();
 			Git.git_libgit2_shutdown();
             return 0;
         }

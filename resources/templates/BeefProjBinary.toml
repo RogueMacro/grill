@@ -1,6 +1,0 @@
-FileVersion = 1
-Dependencies = {  }
-
-[Project]
-Name = "$(Name)"
-StartupObject = "$(Namespace).Program"

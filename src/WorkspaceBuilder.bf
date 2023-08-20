@@ -127,8 +127,8 @@ class WorkspaceBuilder
 
 		defer { delete manifest; delete proj; }
 
-		if (manifest.Package.Name != pkgName)
-			Bail!(scope $"Package '{pkgName}' not found in {path}. Did you mean '{manifest.Package.Name}'?");
+		//if (manifest.Package.Name != pkgName)
+		//	Bail!(scope $"Package '{pkgName}' not found in {path}. Did you mean '{manifest.Package.Name}'?");
 
 		GetOrCreate!(proj.Project);
 		if (isPkg)
@@ -177,7 +177,8 @@ class WorkspaceBuilder
 									// We are a feature-project of this dependency.
 									// As an "extension" of the dependency project,
 									// we rely on it as a dependency.
-									proj.Dependencies[new .(depPath)] = new .("*");
+									let parentIdent = connects[depPath];
+									proj.Dependencies[new .(parentIdent)] = new .("*");
 									continue DepLoop;
 								}
 							}
@@ -224,14 +225,18 @@ class WorkspaceBuilder
 						new .("*")
 					);
 	
-					let features = local.Features.GetEnumerator();
+					List<String> features = scope .(local.Features.GetEnumerator());
 					if (local.DefaultFeatures && depManifest.Features.Default != null)
 					{
-						features.Chain(depManifest.Features.Default);
-					}	
+						for (let defaultFeature in depManifest.Features.Default)
+							if (!features.Contains(defaultFeature))
+								features.Add(defaultFeature);
+					}
 	
 					var depProj = Try!(BeefProj.FromPackage(depPath));
 					defer delete depProj;
+					GetOrCreate!(depProj.Project);
+					GetOrCreate!(depProj.Project.ProcessorMacros);
 					if (!connects.ContainsKey(depPath))
 					{
 						depProj.Project.ProcessorMacros.Clear();
@@ -249,7 +254,7 @@ class WorkspaceBuilder
 						}
 	
 						List<String> featureIdents = scope .();
-						Try!(EnableFeature(depPath, feature, featureIdents));
+						Try!(EnableFeature(depPath, feature, featureIdents, isPkg));
 	
 						featureIdents
 							.GetEnumerator()
@@ -267,7 +272,7 @@ class WorkspaceBuilder
 	
 				for (let package in installedPackages)
 				{
-					if (package.Identifier.Name == name)
+					if (package.Identifier?.Name == name)
 					{
 						IEnumerator<String> features = null;
 						bool enableDefaultFeatures = true;
@@ -328,7 +333,7 @@ class WorkspaceBuilder
 								{
 									Log.Info($"Enabling feature {feature} of {name}");
 									List<String> featureIdents = scope .();
-									Try!(EnableFeature(package.Path, feature, featureIdents));
+									Try!(EnableFeature(package.Path, feature, featureIdents, isPkg));
 	
 									featureIdents
 										.GetEnumerator()
@@ -371,9 +376,10 @@ class WorkspaceBuilder
 	/// Will "prime" a feature of the package at the given path by
 	/// connecting it to it's dependencies or enabling sub-features.
 	/// Enabled features will be added to idents.
-	Result<void> EnableFeature(String path, String feature, List<String> idents)
+	Result<void> EnableFeature(String path, String feature, List<String> idents, bool isPkg)
 	{
 		let manifest = Try!(Manifest.FromPackage(path));
+		defer delete manifest;
 		if (!manifest.Features.Optional.ContainsKey(feature))
 			Bail!(scope $"Unknown feature '{feature}' for '{manifest.Package.Name}'");
 
@@ -381,11 +387,11 @@ class WorkspaceBuilder
 		{
 		case .List(let subFeatures):
 			for (let sub in subFeatures)
-				Try!(EnableFeature(path, sub, idents));
+				Try!(EnableFeature(path, sub, idents, isPkg));
 		case .Project(let featurePath):
 			let ident = new $"{manifest.Package.Name}-{manifest.Package.Version}/{feature}";
 			let fullPath = Path.InternalCombine(.. scope .(), path, featurePath);
-			if (Connect(ident, null, fullPath, true) case .Err)
+			if (Connect(ident, null, fullPath, isPkg) case .Err)
 			{
 				delete ident;
 				return .Err;

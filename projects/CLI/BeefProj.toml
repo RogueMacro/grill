@@ -7,3 +7,5 @@ StartupObject = "Grill.CLI.Program"
 
 [Configs.Debug.Win64]
 PostBuildCmds = ["CopyFilesIfNewer(\"$(WorkspaceDir)/resources\",\"$(TargetDir)\")"]
+DebugCommandArguments = "make"
+DebugWorkingDirectory = "C:\\dev\\Beef\\Grill-Test"
