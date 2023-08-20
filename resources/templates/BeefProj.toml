@@ -1,0 +1,6 @@
+FileVersion = 1
+Dependencies = {  }
+
+[Project]
+Name = "$(Name)"
+TargetType = "$(TargetType)"
