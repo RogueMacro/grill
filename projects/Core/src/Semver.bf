@@ -97,4 +97,18 @@ struct VersionReq : ISerializable, ISerializeAsPrimitive
 
 		return .Err;
 	}
+
+	[Test]
+	static void TestParse()
+	{
+		Test.Assert(Parse("*") case .Ok);
+
+		Test.Assert(Parse("0.1.0") case .Ok);
+		Test.Assert(Parse("1.2") case .Ok);
+
+		Test.Assert(Parse("^0.1.0") case .Ok);
+		Test.Assert(Parse("^1.2") case .Ok);
+
+		Test.Assert(Parse("102.999.4536") case .Ok);
+	}
 }

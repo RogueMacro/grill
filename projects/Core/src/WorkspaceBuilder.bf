@@ -4,74 +4,115 @@ using System.IO;
 using Grill.Util;
 using Iterators;
 using SyncErr;
+using Grill.Beef;
 using Grill.Console;
 
 namespace Grill;
 
 class WorkspaceBuilder
 {
-	String packageName ~ delete _;
-	Version packageVersion;
+	Manifest manifest;
+	Packages installedPackages;
+
 	String workspacePath ~ delete _;
 
 	BeefSpace beefspace ~ delete _;
 	HashSet<String> packageFolder;
 	Dictionary<String, String> connects = new .() ~ DeleteDictionaryAndKeysAndValues!(_);
-	Packages packages;
 
 	public this(Manifest manifest, StringView path, Packages packages)
 	{
-		this.packageName = new .(manifest.Package.Name);
-		this.packageVersion = manifest.Package.Version;
+		this.manifest = manifest;
 		this.workspacePath = new .(path);
-		this.packages = packages;
+		this.installedPackages = packages;
 	}
 
+	/// Builds a workspace file and links all packages together.
 	public Result<void> Build()
 	{
 		let beefprojPath = Path.InternalCombine(.. scope .(), workspacePath, "BeefProj.toml");
 		BeefProj proj = File.Exists(beefprojPath) ? Try!(BeefProj.Read(beefprojPath)) : BeefProj.CreateDefault(beefprojPath);
 		GetOrCreate!(proj.Project);
-	    GetOrCreate!(proj.Project.Name).Set(packageName);
+	    GetOrCreate!(proj.Project.Name).Set(manifest.Package.Name);
 		Try!(proj.Save());
 		delete proj;
 
 		let beefspacePath = Path.InternalCombine(.. scope .(), workspacePath, "BeefSpace.toml");
 		beefspace = File.Exists(beefspacePath) ? Try!(BeefSpace.Read(beefspacePath)) : BeefSpace.CreateDefault(beefspacePath);
 
-		GetOrCreate!(beefspace.Workspace);
-		GetOrCreate!(beefspace.Workspace.StartupProject).Set(packageName);
-
 		DeleteDictionaryAndKeysAndValues!(beefspace.Projects);
 		beefspace.Projects = new .();
 
-		beefspace.Projects[new .("corlib")] = new .() {
-			Path = Paths.BeefLib("corlib", .. new .())
-		};
-
 		ClearAndDeleteItems!(GetOrCreate!(beefspace.Locked));
-		beefspace.Locked.Add(new .("corlib"));
 
+		GetOrCreate!(beefspace.Workspace);
+		var startupProject = GetOrCreate!(beefspace.Workspace.StartupProject);
+		if (manifest.Workspace?.StartupProject != null)
+			startupProject.Set(manifest.Workspace.StartupProject);
+		else
+			startupProject.Set(manifest.Package.Name);
+		
 		GetOrCreate!(beefspace.WorkspaceFolders);
+
+		List<(String name, String path)> integrationTests = scope .();
+		let testDir = Path.InternalCombine(.. scope .(), workspacePath, "tests");
+		for (let dir in Directory.EnumerateDirectories(testDir))
+		{
+			let name = dir.GetFileName(.. new .());
+			if (name == "common")
+			{
+				delete name;
+				continue;
+			}
+
+			let path = dir.GetFilePath(.. new .());
+			integrationTests.Add((name, path));
+		}
+
+		if (!integrationTests.IsEmpty)
+		{
+			if (!beefspace.WorkspaceFolders.ContainsKey("Tests"))
+				beefspace.WorkspaceFolders[new .("Tests")] = new .();
+
+			var tests = beefspace.WorkspaceFolders["Tests"];
+			ClearAndDeleteItems!(tests);
+
+			for (let (name, path) in integrationTests)
+			{
+				tests.Add(name);
+				beefspace.Projects.Add(new .(name), new .() {
+					Path = path
+				});
+			}
+		}
+
 		if (!beefspace.WorkspaceFolders.ContainsKey("Packages"))
 			beefspace.WorkspaceFolders[new .("Packages")] = packageFolder = new .();
 		else
 			packageFolder = beefspace.WorkspaceFolders["Packages"];
-
 		ClearAndDeleteItems!(packageFolder);
 
-		Try!(Connect(packageName, packageVersion, workspacePath, false));
+		Try!(Connect(manifest.Package.Name, manifest.Package.Version, workspacePath, false));
+
+		if (manifest.Workspace?.Members != null)
+		{
+			for (let member in manifest.Workspace.Members)
+			{
+				let memberPath = Path.InternalCombine(.. scope .(), workspacePath, member);
+				let memberManifest = Try!(Manifest.FromPackage(memberPath));
+				defer delete memberManifest;
+				Try!(Connect(memberManifest.Package.Name, memberManifest.Package.Version, memberPath, false));
+			}
+		}
+
+		if (!beefspace.Projects.ContainsKey(startupProject))
+			Bail!(scope $"Startup-project '{startupProject}' not found. Did you add it as a member?");
 
 		return beefspace.Save();
 	}
 
-	mixin GetOrCreate(var val)
-	{
-		if (val == null)
-			val = new .();
-		val
-	}
-
+	/// Connect a package to the network of projects. This will find and
+	/// create references to dependencies and features, recursively.
 	Result<String> Connect(StringView pkgName, Version? version, String path, bool isPkg)
 	{
 		var path;
@@ -81,13 +122,18 @@ class WorkspaceBuilder
 
 		Manifest manifest = Try!(Manifest.FromPackage(path));
 		BeefProj proj;
-		//if (!(BeefProj.FromPackage(path) case .Ok(out proj)))
-		//	proj = BeefProj.CreateDefault(Path.InternalCombine(.. scope .(), path, "BeefProj.toml"));
-		proj = Try!(BeefProj.FromPackage(path));
+		if (!(BeefProj.FromPackage(path) case .Ok(out proj)))
+			proj = BeefProj.CreateDefault(Path.InternalCombine(.. scope .(), path, "BeefProj.toml"));
 
 		defer { delete manifest; delete proj; }
 
-		let isBinary = proj.Project.TargetType == .BeefConsoleApplication;
+		if (manifest.Package.Name != pkgName)
+			Bail!(scope $"Package '{pkgName}' not found in {path}. Did you mean '{manifest.Package.Name}'?");
+
+		GetOrCreate!(proj.Project);
+		if (isPkg)
+			proj.Project.TargetType = .Library;
+		let isBinary = proj.Project.TargetType == .Binary;
 
 		ClearAndDeletePairs!(GetOrCreate!(proj.Dependencies));
 		if (manifest.Package.Corlib)
@@ -117,28 +163,32 @@ class WorkspaceBuilder
 					depPath = Path.GetFullPath(depPath, .. scope .());
 					let depManifest = Try!(Manifest.FromPackage(depPath));
 					defer delete depManifest;
-	
-					for (let feature in depManifest.Features.Values)
+
+					if (depManifest.Features?.Optional != null)
 					{
-						if (feature case .Project(let p))
+						for (let feature in depManifest.Features.Optional.Values)
 						{
-							var featurePath = Path.InternalCombine(.. scope .(), depPath, p);
-							featurePath = Path.GetFullPath(featurePath, .. scope .());
-							if (featurePath == path)
+							if (feature case .Project(let p))
 							{
-								// We are a feature-project of this dependency.
-								// As an "extension" of the dependency project,
-								// we rely on it as a dependency.
-								proj.Dependencies[new .(depPath)] = new .("*");
-								continue DepLoop;
+								var featurePath = Path.InternalCombine(.. scope .(), depPath, p);
+								featurePath = Path.GetFullPath(featurePath, .. scope .());
+								if (featurePath == path)
+								{
+									// We are a feature-project of this dependency.
+									// As an "extension" of the dependency project,
+									// we rely on it as a dependency.
+									proj.Dependencies[new .(depPath)] = new .("*");
+									continue DepLoop;
+								}
 							}
 						}
 					}
 	
 					String depIdent;
-					if (path.StartsWith(depPath))
+					if (isPkg)
 					{
-						// We are a subpackage to this dependency
+						// We are a package in someone else's workspace,
+						// so we don't want our dependencies names to collide
 						depIdent = Try!(Connect(
 							scope $"{pkgName}/{name}",
 							null,
@@ -146,19 +196,7 @@ class WorkspaceBuilder
 							isPkg
 						));
 					}
-					else if (depPath.StartsWith(path))
-					{
-						// Dependency is a subpackage to us
-						depIdent = Try!(Connect(
-							name,
-							null,
-							depPath,
-							// If we are a binary application then local
-							// dependencies should not be considered packages 
-							isPkg && !isBinary
-						));
-					}
-					else
+					else if (!(depPath.StartsWith(path) || path.StartsWith(depPath)))
 					{
 						// Dependency is an external package outside our root package
 						depIdent = Try!(Connect(
@@ -168,6 +206,18 @@ class WorkspaceBuilder
 							isPkg
 						));
 					}
+					else
+					{
+						// Dependency a local project in our workspace
+						depIdent = Try!(Connect(
+							name,
+							null,
+							depPath,
+							// If we are a binary application then local
+							// dependencies should not be considered " external packages"
+							isPkg && !isBinary
+						));
+					}
 	
 					proj.Dependencies.Add(
 						!isPkg || isBinary ? new .(name) : depIdent,
@@ -175,13 +225,9 @@ class WorkspaceBuilder
 					);
 	
 					let features = local.Features.GetEnumerator();
-					if (local.DefaultFeatures && depManifest.Features.ContainsKey("Default"))
+					if (local.DefaultFeatures && depManifest.Features.Default != null)
 					{
-						let defaults = depManifest.Features["Default"];
-						if (defaults case .List(let defaultDepFeatures))
-							features.Chain(defaultDepFeatures.GetEnumerator());
-						else
-							Bail!(scope $"Default features of '{name}' must be a list of features, not a project path");
+						features.Chain(depManifest.Features.Default);
 					}	
 	
 					var depProj = Try!(BeefProj.FromPackage(depPath));
@@ -194,7 +240,7 @@ class WorkspaceBuilder
 	
 					for (let feature in features)
 					{
-						if (depManifest.Features.GetValue(feature) case .Ok(.Project(let p)))
+						if (depManifest.Features.Optional.GetValue(feature) case .Ok(.Project(let p)))
 						{
 							var featurePath = Path.InternalCombine(.. scope .(), depPath, p);
 							featurePath = Path.GetFullPath(featurePath, .. scope .());
@@ -219,7 +265,7 @@ class WorkspaceBuilder
 					continue;
 				}
 	
-				for (let package in packages)
+				for (let package in installedPackages)
 				{
 					if (package.Identifier.Name == name)
 					{
@@ -257,7 +303,7 @@ class WorkspaceBuilder
 	
 							let depManifest = Try!(Manifest.FromPackage(package.Path));
 							defer delete depManifest;
-							let weAreFeature = depManifest.Features == null ? false : depManifest.Features.Values.Any(scope (feature) => {
+							let weAreFeature = depManifest.Features?.Optional == null ? false : depManifest.Features.Optional.Values.Any(scope (feature) => {
 								if (feature case .Project(var featurePath))
 								{
 									featurePath = Path.InternalCombine(.. scope .(), package.Path, featurePath);
@@ -273,8 +319,8 @@ class WorkspaceBuilder
 	
 							if (features != null)
 							{
-								if (enableDefaultFeatures && depManifest.Features.GetValue("Default") case .Ok(.List(let defaultFeatures)))
-									features = features.Chain(defaultFeatures.GetEnumerator());
+								if (enableDefaultFeatures && depManifest.Features.Default != null)
+									features = features.Chain(depManifest.Features.Default);
 	
 								let depProj = Try!(BeefProj.FromPackage(package.Path));
 								defer delete depProj;
@@ -300,7 +346,7 @@ class WorkspaceBuilder
 					}
 				}
 	
-				Log.Print("[Error]", $"{pkgName} missing dependency {name}");
+				Log.Error($"Could not find dependency {name} of {pkgName}");
 			}
 		}
 
@@ -322,13 +368,16 @@ class WorkspaceBuilder
 		return .Ok(ident);
 	}
 
+	/// Will "prime" a feature of the package at the given path by
+	/// connecting it to it's dependencies or enabling sub-features.
+	/// Enabled features will be added to idents.
 	Result<void> EnableFeature(String path, String feature, List<String> idents)
 	{
 		let manifest = Try!(Manifest.FromPackage(path));
-		if (!manifest.Features.ContainsKey(feature))
+		if (!manifest.Features.Optional.ContainsKey(feature))
 			Bail!(scope $"Unknown feature '{feature}' for '{manifest.Package.Name}'");
 
-		switch (manifest.Features.GetValue(feature).Get())
+		switch (manifest.Features.Optional.GetValue(feature).Get())
 		{
 		case .List(let subFeatures):
 			for (let sub in subFeatures)
@@ -346,5 +395,12 @@ class WorkspaceBuilder
 		}
 
 		return .Ok;
+	}
+
+	mixin GetOrCreate(var val)
+	{
+		if (val == null)
+			val = new .();
+		val
 	}
 }

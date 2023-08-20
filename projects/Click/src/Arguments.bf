@@ -5,6 +5,11 @@ namespace Click;
 
 class Arguments : List<StringView>
 {
+	public this()
+	{
+
+	}
+
 	public this(StringView input)
 	{
 		Parse(input);

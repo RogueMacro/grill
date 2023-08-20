@@ -1,0 +1,10 @@
+FileVersion = 1
+
+[Dependencies]
+corlib = "*"
+
+[Project]
+Name = "Iterators"
+TargetType = "BeefLib"
+StartupObject = ""
+ProcessorMacros = []

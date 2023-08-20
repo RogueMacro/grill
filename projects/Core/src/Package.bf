@@ -4,31 +4,39 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Grill.Beef;
 using Grill.Console;
 using Grill.Resolution;
+using Grill.Resources;
 
 using Serialize;
 using Toml;
+using SyncErr;
 
 namespace Grill;
 
-class Workspace
+class Package
 {
 	public Manifest Manifest ~ delete _;
 	public Lock Lock ~ DeleteDictionaryAndKeysAndValues!(_);
 	public Packages Packages ~ delete _;
 
-	String path ~ delete _;
+	String path = new .() ~ delete _;
 	RegistryCache cache ~ if (_ != null) _.ReleaseLastRef();
 	RefCounted<IRegistry> registry ~ if (_ != null) _.Release();
 
-	public this(StringView path)
-	{
-		this.path = new .(path);
-	}
+	bool isOpen = false;
 
-	public Result<void> Open()
+	const StringView[?] RESERVED_DIRS = .("src", "pkg", "build", "recovery", "tests", "common");
+
+	/// Open a workspace.
+	public Result<void> Open(StringView path, StringView? pkgs = null)
 	{
+		if (isOpen)
+			Bail!("Workspace is already open");
+
+		this.path.Set(path);
+
 		Manifest = Try!(decltype(Manifest).FromPackage(path));
 
 		let lockPath = Path.InternalCombine(.. scope .(), path, Paths.LOCK_FILENAME);
@@ -37,26 +45,126 @@ class Workspace
 			String file = scope .();
 			Try!(File.ReadAllText(lockPath, file)..Context("Failed to read lock file"));
 
-			Serialize<Toml> serializer = scope .();
+			Serializer<Toml> serializer = scope .();
 			Lock = Try!(serializer.Deserialize<Lock>(file)
 				..Context(scope (str) => serializer.Error.ToString(str))
 				..Context($"Failed to deserialize lock file"));
 		}
 
-		Packages = new .(Path.InternalCombine(.. scope .(), path, Paths.PACKAGE_DIRECTORY));
+		Packages = new .(Path.InternalCombine(.. scope .(), pkgs ?? path, Paths.PACKAGE_DIRECTORY));
 
+		isOpen = true;
 		return .Ok;
 	}
 
+	/// Create a workspace.
+	public Result<void> Create(StringView path, StringView name = "", TargetType targetType = .Binary)
+	{
+		if (!Directory.IsEmpty(path))
+			Bail!("Directory is not empty");
+
+		if (!Directory.Exists(path))
+			Directory.CreateDirectory(path);
+
+		var name;
+		if (name.IsEmpty)
+		{
+			let dir = Path.GetFullPath(scope .(path), .. scope .());
+			name = Path.GetFileName(dir, .. scope:: .());
+		}
+
+		Try!(Templates.Manifest.Place(path, ("$(Name)", name)));
+
+		let ns = scope String(name)..Replace('-', '_');
+
+		if (targetType case .Binary)
+		{
+			Try!(Templates.BeefProjBinary.Place(
+				path,
+				("$(Name)", name),
+				("$(Namespace)", ns)
+			));
+		}
+		else
+		{
+			Try!(Templates.BeefProj.Place(
+				path,
+				("$(Name)", name),
+				("$(TargetType)", targetType.ToString(.. scope .()))
+			));
+		}
+
+		let src = Path.InternalCombine(.. scope .(), path, "src");
+		Directory.CreateDirectory(src);
+		Try!(Templates.Program.Place(src, ("$(Namespace)", ns)));
+
+		return Open(path);
+	}
+
+	/// Create an integration test.
+	public Result<void> CreateIntegrationTest(StringView name)
+	{
+		AssertOpen!();
+
+		if (RESERVED_DIRS.Contains(name))
+			Bail!(scope $"{name} is reserved. Choose something else.");
+
+		let tests = Path.InternalCombine(.. scope .(), path, Paths.TEST_DIRECTORY);
+		if (!Directory.Exists(tests))
+			Directory.CreateDirectory(tests);
+
+		let testDir = Path.InternalCombine(.. scope .(), tests, name);
+		if (Directory.Exists(testDir))
+			Bail!("Test already exists");
+
+		Package test = scope .();
+		Try!(test.Create(testDir, name, .Binary));
+		Try!(test.Make());
+
+		BeefSpace workspace = Scoped!(Try!(BeefSpace.FromPackage(path)));
+		HashSet<String> testFolder;
+		if (workspace.WorkspaceFolders.GetValue("Tests") case .Ok(let folder))
+			testFolder = folder;
+		else
+			testFolder = workspace.WorkspaceFolders[new $"Tests"] = new .();
+
+		if (!testFolder.ContainsAlt(name))
+			testFolder.Add(new .(name));
+
+		if (!workspace.Projects.ContainsKeyAlt(name))
+			workspace.Projects[new .(name)] = new .() { Path = new .(testDir) };
+
+		Try!(workspace.Save());
+		return .Ok;
+	}
+
+	mixin Scoped(var value)
+	{
+		defer:mixin delete value;
+		value
+	}
+
+	// Make a workspace.
+	// 
+	// @remarks Steps:
+	// 	1. Update the registry if necessary.
+	//
+	// 	2. Resolve the dependency tree if lock doesn't
+	// 	   already satisfy requirements.
+	//
+	// 	3. Fetch packages not found locally.
+	//
+	// 	4. Build the workspace file and package tree links.
+	// 	   Goes through all packages included in the tree
+	// 	   and creates references to dependencies and features.
+	//
+	// Depending on the value of 'GConsole.Quiet', this will display
+	// a console interface with status, logs and progress bars.
+	//
+	/// Make a workspace.
 	public Result<void> Make()
 	{
-		//if (quiet)
-		//{
-		//	Try!(UpdateStep());
-		//	// Resolve
-		//	Try!(FetchStep(null));
-		//	// Build workspace
-		//}
+		AssertOpen!();
 
 		{
 			MultiProgress multi = scope .();
@@ -115,7 +223,7 @@ class Workspace
 	{
 		let previousLock = Lock;
 		Resolver resolver = scope .(cache);
-		Lock = Try!(resolver.Resolve(Manifest));
+		Lock = Try!(resolver.Resolve(Manifest, path));
 		DeleteDictionaryAndKeysAndValues!(previousLock);
 		
 		String s = new .();
@@ -161,6 +269,7 @@ class Workspace
 
 	public Result<void> Build()
 	{
+		AssertOpen!();
 		let builder = scope WorkspaceBuilder(Manifest, path, Packages);
 		return builder.Build();
 	}
@@ -175,5 +284,19 @@ class Workspace
 
 		progress.Finish();
 		return result;
+	}
+
+	/// Run unit-tests
+	public Result<void> UnitTests()
+	{
+		AssertOpen!();
+
+		return .Err;
+	}
+
+	mixin AssertOpen()
+	{
+		if (!isOpen)
+			Bail!("No workspace is open");
 	}
 }

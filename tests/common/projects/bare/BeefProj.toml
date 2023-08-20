@@ -1,0 +1,9 @@
+FileVersion = 1
+
+[Dependencies]
+corlib = "*"
+"Toml-0.1.4" = "*"
+"Serialize-0.1.4" = "*"
+
+[Project]
+Name = "testproj"

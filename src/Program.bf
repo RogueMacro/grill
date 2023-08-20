@@ -7,9 +7,13 @@ using Click;
 using Serialize;
 using Toml;
 using SyncErr;
+using Iterators;
 
+using Grill.Beef;
 using Grill.Console;
 using Grill.CLI.Commands;
+using Grill.Resources;
+using System.Diagnostics;
 
 namespace Grill.CLI
 {
@@ -22,25 +26,21 @@ namespace Grill.CLI
 
         public static int Main(String[] args)
         {
-			GConsole.CursorVisible = false;
-
 			Git.git_libgit2_init();
-
+			ResourceManager.Init<ResourceProvider>();
+			Paths.ClearTemporary();
 			CLI.Commands.RegisterAll();
 
-			Paths.ClearTemporary();
-
-			//Repl();
-			if (Run("make testproj") case .Err)
+			Arguments arguments = scope .();
+			for (let a in args)
+				arguments.Add(StringView(a));
+			if (Run(arguments) case .Err)
 			{
-				Console.Write($"\n{Styled("[error]")..Bright()..Red()} ");
+				Console.Write($"\n{Styled("[Error]")..Bright()..Red()} ");
 				Errors.PrintBacktrace();
 			}
 
 			Git.git_libgit2_shutdown();
-
-			GConsole.CursorVisible = true;
-			Console.Read().IgnoreError();
             return 0;
         }
 
@@ -59,14 +59,17 @@ namespace Grill.CLI
 			return Run(arguments);
 		}
 
-		static void Repl()
+		static void Repl(bool replEnv = true)
 		{
-			Directory.CreateDirectory("repl");
-			Directory.SetCurrentDirectory("repl");
-			for (let dir in Directory.EnumerateDirectories("."))
-				Directory.DelTree(dir.GetFileName(..scope .())..Insert(0, "./"));
-			for (let file in Directory.EnumerateDirectories("."))
-				File.Delete(file.GetFileName(..scope .()));
+			if (replEnv)
+			{
+				Directory.CreateDirectory("repl");
+				Directory.SetCurrentDirectory("repl");
+				for (let dir in Directory.EnumerateDirectories("."))
+					Directory.DelTree(dir.GetFileName(..scope .())..Insert(0, "./"));
+				for (let file in Directory.EnumerateDirectories("."))
+					File.Delete(file.GetFileName(..scope .()));
+			}
 
 			while (true)
 			{
@@ -78,13 +81,11 @@ namespace Grill.CLI
 
 				if (Run(input) case .Err(let err))
 				{
-					Console.WriteLine($"{Styled("[Error] ")..Bright()..Red()} ");
+					Console.Write(Styled("[Error] ")..Bright()..Red());
 					Errors.PrintBacktrace();
 				}
-				Console.WriteLine();
 
-				Console.Read();
-				break;
+				Console.WriteLine();
 			}
 		}
     }

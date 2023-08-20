@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+using System.IO;
+using Iterators;
 
 namespace Grill.Resolution;
 
@@ -12,19 +14,53 @@ class Resolver
 		this.cache = cache..AddRef();
 	}
 
-	public Result<Lock> Resolve(Manifest manifest)
+	public Result<Lock> Resolve(Manifest manifest, StringView path)
 	{
 		// Add the root dependencies
 		List<Candidate> candidates = scope .();
-		for (let (name, dependency) in manifest.Dependencies)
-		{
-			switch (dependency)
+		AddRoots: {
+			Dictionary<String, Dependency> roots = scope .();
+			manifest.Dependencies.GetEnumerator().Collect(roots);
+
+			List<(Dependency.Local, String)> locals = scope .();
+			for (let (name, dependency) in manifest.Dependencies)
 			{
-			case .Simple(let req):
-				candidates.Add(scope:: .(name, req, cache));
-			case .Advanced(let advanced):
-				candidates.Add(scope:: .(name, advanced.Req, cache));
-			case .Local, .Git:
+				if (dependency case .Local(let local))
+					locals.Add((local, Path.InternalCombine(.. scope:AddRoots .(), path, local.Path)));
+			}
+
+			for (let (local, localPath) in locals)
+			{
+				let localManifest = Try!(Manifest.FromPackage(localPath));
+				defer:AddRoots delete localManifest;
+
+				if (localManifest.Dependencies == null)
+					continue;
+
+				for (let (name, dependency) in localManifest.Dependencies)
+				{
+					switch (dependency)
+					{
+					case .Local(let l):
+						locals.Add((l, Path.InternalCombine(.. scope:AddRoots .(), localPath, l.Path)));
+					case .Simple, .Advanced:
+						if (!roots.ContainsKey(name))
+							roots.Add(name, dependency);
+					case .Git:
+					}
+				}
+			}
+
+			for (let (name, dependency) in roots)
+			{
+				switch (dependency)
+				{
+				case .Simple(let req):
+					candidates.Add(scope:: .(name, req, cache));
+				case .Advanced(let advanced):
+					candidates.Add(scope:: .(name, advanced.Req, cache));
+				case .Local, .Git:
+				}
 			}
 		}
 

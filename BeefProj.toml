@@ -1,6 +1,11 @@
 FileVersion = 1
-Dependencies = {SyncErr = "*", Click = "*", "BuildTools-0.2.3" = "*", "Serialize-0.1.3" = "*", "Toml-0.1.3" = "*", corlib = "*", Grill = "*"}
+Dependencies = {"Serialize-0.1.5" = "*", corlib = "*", "Toml-0.1.5" = "*", Grill = "*", SyncErr = "*", "BuildTools-0.2.4" = "*", Click = "*"}
 
 [Project]
 Name = "Grill.CLI"
 StartupObject = "Grill.CLI.Program"
+
+[Configs.Debug.Win64]
+PostBuildCmds = ["CopyFilesIfNewer(\"$(ProjectDir)/resources\",\"$(TargetDir)\")"]
+DebugCommandArguments = "make"
+DebugWorkingDirectory = "c:\\dev\\Beef\\Grill-Change"

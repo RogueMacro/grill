@@ -16,10 +16,11 @@ class MakeCommand
 	public Result<void> Run()
 	{
 		GConsole.Quiet = Quiet;
+		GConsole.CursorVisible = false;
+		defer { GConsole.CursorVisible = true; }
 
-		Workspace workspace = scope .(Path);
-		Try!(workspace.Open());
-
-		return workspace.Make();
+		Package package = scope .();
+		Try!(package.Open(Path));
+		return package.Make();
 	}
 }

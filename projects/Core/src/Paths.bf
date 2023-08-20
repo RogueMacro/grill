@@ -10,6 +10,7 @@ static class Paths
 	public const String MANIFEST_FILENAME = "Package.toml";
 	public const String LOCK_FILENAME = "Package.lock";
 	public const String PACKAGE_DIRECTORY = "pkg";
+	public const String TEST_DIRECTORY = "tests";
 
 	public static String Home ~ delete _;
 	public static String Temporary ~ delete _;

@@ -1,0 +1,18 @@
+FileVersion = 1
+
+[Dependencies]
+corlib = "*"
+Grill = "*"
+
+[Project]
+Name = "Basic"
+TargetType = "BeefLib"
+StartupObject = "Basic.Program"
+
+[Configs]
+
+[Configs.Debug]
+
+[Configs.Debug.Win64]
+PostBuildCmds = ["CopyFilesIfNewer(\"$(ProjectDir)/../common/projects/bare\", \"$(TargetDir)\")"]
+DebugWorkingDirectory = "$(TargetDir)/bare"

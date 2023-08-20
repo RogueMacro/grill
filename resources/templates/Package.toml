@@ -1,0 +1,6 @@
+[Package]
+Name = "$(Name)"
+Version = "0.1.0"
+Description = ""
+
+[Dependencies]

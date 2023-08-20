@@ -30,4 +30,17 @@ static
 			DeleteDictionaryAndKeys!(container);
 		}
 	}
+
+	public static mixin DeleteDictionaryAndItems<K, V>(Dictionary<K, V> container)
+		where K : IHashable, delete
+	{
+		DeleteDictionaryAndKeys!(container);
+	}
+
+	public static mixin DeleteDictionaryAndItems<K, V>(Dictionary<K, V> container)
+		where K : IHashable, delete
+		where V : delete
+	{
+		DeleteDictionaryAndKeysAndValues!(container);
+	}
 }
