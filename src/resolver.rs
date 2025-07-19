@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use semver::{Version, VersionReq};
@@ -176,7 +174,7 @@ pub fn resolve(manifest: &Manifest, lock: Option<&Lock>, index: &Index) -> Resul
     lock.reserve(candidates.len());
     for candidate in candidates {
         lock.entry(candidate.name)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(candidate.version.unwrap());
     }
 

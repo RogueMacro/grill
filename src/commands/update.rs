@@ -65,9 +65,10 @@ pub fn exec(args: &ArgMatches) -> Result<()> {
 fn print_altered_deps(old_lock: &Lock, new_lock: &Lock) {
     for (dep, versions) in new_lock {
         for version in versions {
-            if old_lock.get(dep).map_or(true, |old_versions| {
-                !old_versions.iter().any(|v| v.major == version.major)
-            }) {
+            if old_lock
+                .get(dep)
+                .is_none_or(|old_versions| !old_versions.iter().any(|v| v.major == version.major))
+            {
                 println!(
                     "{:>12} {} v{}",
                     style("Added").bright().cyan(),
@@ -98,9 +99,10 @@ fn print_altered_deps(old_lock: &Lock, new_lock: &Lock) {
 
     for (dep, versions) in old_lock {
         for version in versions {
-            if !new_lock.get(dep).map_or(false, |new_versions| {
-                new_versions.iter().any(|v| v.major == version.major)
-            }) {
+            if !new_lock
+                .get(dep)
+                .is_some_and(|new_versions| new_versions.iter().any(|v| v.major == version.major))
+            {
                 println!(
                     "{:>12} {} v{}",
                     style("Removed").bright().red(),

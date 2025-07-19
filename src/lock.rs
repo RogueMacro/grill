@@ -51,9 +51,10 @@ fn validate_lock(manifest: &Manifest, lock: &Lock) -> bool {
     log::trace!("Validating lock");
 
     for (dep, req) in manifest.indexed_deps() {
-        if !lock.get(dep).map_or(false, |locked_versions| {
-            locked_versions.iter().any(|v| req.matches(v))
-        }) {
+        if !lock
+            .get(dep)
+            .is_some_and(|locked_versions| locked_versions.iter().any(|v| req.matches(v)))
+        {
             log::debug!("Invalid lock: No match for {} {}", dep, req);
             return false;
         }
